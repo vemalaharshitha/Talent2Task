@@ -25,7 +25,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('Skill2Work Uncaught Error:', error, errorInfo);
+    console.error('Talent2Task Uncaught Error:', error, errorInfo);
   }
 
   render() {
@@ -67,8 +67,20 @@ createRoot(document.getElementById('root')!).render(
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
+    // Purge legacy caches to ensure fresh assets and logos
+    if ('caches' in window) {
+      caches.keys().then((names) => {
+        names.forEach((name) => {
+          if (name !== 'talent2task-offline-v3') {
+            caches.delete(name);
+          }
+        });
+      });
+    }
+
     navigator.serviceWorker.register('/sw.js').then((reg) => {
-      console.log('Skill2Work Offline Engine Ready:', reg.scope);
+      reg.update();
+      console.log('Talent2Task Offline Engine Ready:', reg.scope);
     }).catch((error) => {
       console.warn('Offline engine notice:', error);
     });

@@ -58,7 +58,7 @@ export const SqliteConsoleModal: React.FC<SqliteConsoleModalProps> = ({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `skill2work_vellore_${new Date().toISOString().substring(0, 10)}.sqlite`;
+    a.download = `talent2task_vellore_${new Date().toISOString().substring(0, 10)}.sqlite`;
     a.click();
     URL.revokeObjectURL(url);
   };

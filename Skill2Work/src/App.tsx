@@ -1,15 +1,20 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import type { 
-  Role, 
-  User, 
+import type {
+  User,
   Job,
   NotificationItem,
   SkillDemandStat
 } from './types';
 import { sqliteManager } from './db/sqliteManager';
-import { syncService, type ConnectionStatus } from './services/syncService';
-import { enrichJobsForSeeker } from './services/matchingService';
-import { VELLORE_LOCATIONS } from './services/geoService';
+import { syncService } from './services/syncService';
+import { offlineQueueService } from './services/offlineQueueService';
+import { enrichJobsForSeeker, enrichJobsForSeekerAsync } from './services/matchingService';
+import { semanticService, type ModelStatus } from './services/semanticService';
+import {
+  TAMIL_NADU_LOCATIONS,
+  getLocationsByCity,
+  requestBrowserLocation
+} from './services/geoService';
 import { useLanguage } from './i18n/LanguageContext';
 import { localizeContent } from './i18n/translations';
 import { triggerOfflineSms } from './utils/smsHelper';
@@ -20,29 +25,32 @@ import { RadiusFilter } from './components/SeekerDashboard/RadiusFilter';
 import { JobList } from './components/SeekerDashboard/JobList';
 import { JobDetailsModal } from './components/SeekerDashboard/JobDetailsModal';
 import { SeekerProfileModal } from './components/SeekerDashboard/SeekerProfileModal';
+import { RecruiterProfileModal } from './components/RecruiterDashboard/RecruiterProfileModal';
 import { MyClaimedJobs } from './components/SeekerDashboard/MyClaimedJobs';
 import { SkillGapRecommendations } from './components/SeekerDashboard/SkillGapRecommendations';
 import { PostJobModal } from './components/RecruiterDashboard/PostJobModal';
 import { RecruiterJobList } from './components/RecruiterDashboard/RecruiterJobList';
 import { VelloreMapView } from './components/MapView/VelloreMapView';
-import { SqliteConsoleModal } from './components/SqliteConsoleModal';
+import { GigDirectionsModal } from './components/SeekerDashboard/GigDirectionsModal';
 import { LoginPage } from './components/LoginPage';
 import { NotificationsModal } from './components/NotificationsModal';
 import { FeedbackRatingModal } from './components/FeedbackRatingModal';
 import { CommunityDemandModal } from './components/CommunityDemandModal';
-import { DeviceSyncModal } from './components/DeviceSyncModal';
 import { LiveGigAlert } from './components/LiveGigAlert';
+import { ChatAssistantModal } from './components/ChatAssistant/ChatAssistantModal';
+import { PayNowModal } from './components/common/PayNowModal';
+import { PaymentHistoryModal } from './components/common/PaymentHistoryModal';
 
 // Icons
-import { 
-  Radio, 
-  List, 
-  Map as MapIcon, 
-  ShieldCheck, 
-  Sparkles, 
-  Briefcase, 
-  BarChart3
+import {
+  List,
+  Map as MapIcon,
+  Sparkles,
+  Briefcase,
+  BarChart3,
+  Navigation
 } from 'lucide-react';
+import logoImg from './assets/logo.png';
 
 export const App: React.FC = () => {
   const { t, language } = useLanguage();
@@ -50,21 +58,31 @@ export const App: React.FC = () => {
   // App State
   const [isDbReady, setIsDbReady] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return Boolean(localStorage.getItem('skill2work_active_user_id'));
+    return Boolean(localStorage.getItem('talent2task_active_user_id'));
   });
   const [isOnline, setIsOnline] = useState(() => navigator.onLine);
-  const [currentRole, setCurrentRole] = useState<Role>('seeker');
+  const [pendingQueueCount, setPendingQueueCount] = useState<number>(() => offlineQueueService.getPendingCount());
   const [users, setUsers] = useState<User[]>([]);
   const [rawJobs, setRawJobs] = useState<Job[]>([]);
-  
+
+  // Unified Navigation Tab: 'explore' | 'my-gigs' | 'post-manage'
+  const [activeTab, setActiveTab] = useState<'explore' | 'my-gigs' | 'post-manage'>(() => {
+    const activeUserId = localStorage.getItem('talent2task_active_user_id');
+    if (activeUserId) {
+      const user = sqliteManager.getUserById(activeUserId);
+      if (user?.role === 'recruiter') return 'post-manage';
+    }
+    return 'explore';
+  });
+  const [isLocating, setIsLocating] = useState<boolean>(false);
+
   // Active Logged-in User ID
   const [currentUserId, setCurrentUserId] = useState<string | null>(() => {
-    return localStorage.getItem('skill2work_active_user_id');
+    return localStorage.getItem('talent2task_active_user_id');
   });
 
   // Filters & Views
-  const [radiusKm, setRadiusKm] = useState<number>(3);
-  const [seekerActiveTab, setSeekerActiveTab] = useState<'all' | 'my-gigs'>('all');
+  const [radiusKm, setRadiusKm] = useState<number>(5);
   const [viewMode, setViewMode] = useState<'both' | 'list' | 'map'>('both');
 
   // Active user object derived from SQLite DB users
@@ -73,16 +91,14 @@ export const App: React.FC = () => {
       const found = users.find(u => u.id === currentUserId) || sqliteManager.getUserById(currentUserId);
       if (found) return found;
     }
-    return null;
+    return users[0] || null;
   }, [users, currentUserId]);
 
-  const effectiveRole: Role = currentUser?.role || currentRole;
-
   const currentSeeker = useMemo<User>(() => {
-    if (currentUser?.role === 'seeker') return currentUser;
+    if (currentUser) return currentUser;
     const found = users.find(u => u.role === 'seeker');
     if (found) return found;
-    return currentUser || users[0];
+    return users[0];
   }, [users, currentUser]);
 
   const currentRecruiter = useMemo<User>(() => {
@@ -94,16 +110,19 @@ export const App: React.FC = () => {
 
   // Modals & New Features
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [activeDirectionsJob, setActiveDirectionsJob] = useState<Job | null>(null);
+  const [isInitialClaimDirections, setIsInitialClaimDirections] = useState<boolean>(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isPostJobModalOpen, setIsPostJobModalOpen] = useState(false);
-  const [isSqlConsoleOpen, setIsSqlConsoleOpen] = useState(false);
+  const [postJobInitialData, setPostJobInitialData] = useState<any>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isCommunityDemandOpen, setIsCommunityDemandOpen] = useState(false);
-  const [isDeviceSyncOpen, setIsDeviceSyncOpen] = useState(false);
   const [liveAlertJob, setLiveAlertJob] = useState<Job | null>(null);
-  const [syncStatus, setSyncStatus] = useState<ConnectionStatus>(syncService.getConnectionStatus());
-  const [connectedDevicesCount, setConnectedDevicesCount] = useState<number>(syncService.getConnectedDevicesCount());
   const [jobForReview, setJobForReview] = useState<Job | null>(null);
+  const [payModalJob, setPayModalJob] = useState<Job | null>(null);
+  const [isPaymentHistoryOpen, setIsPaymentHistoryOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [skillDemandStats, setSkillDemandStats] = useState<SkillDemandStat[]>([]);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -140,13 +159,8 @@ export const App: React.FC = () => {
     return () => unsubscribe();
   }, [reloadData]);
 
-  // Subscribe to Real-Time Device Sync status & remote gig announcements
+  // Real-Time Background Sync subscription for silent live gig updates
   useEffect(() => {
-    const unsubStatus = syncService.subscribeStatus((newStatus, count) => {
-      setSyncStatus(newStatus);
-      setConnectedDevicesCount(count);
-    });
-
     const unsubSync = syncService.subscribe((msg) => {
       if (msg.type === 'JOB_CREATED' && msg.data) {
         setLiveAlertJob(msg.data);
@@ -155,7 +169,6 @@ export const App: React.FC = () => {
     });
 
     return () => {
-      unsubStatus();
       unsubSync();
     };
   }, [showToast]);
@@ -171,21 +184,80 @@ export const App: React.FC = () => {
     const updateConnection = () => setIsOnline(navigator.onLine);
     window.addEventListener('online', updateConnection);
     window.addEventListener('offline', updateConnection);
+    const unsubQueue = offlineQueueService.subscribe((count) => {
+      setPendingQueueCount(count);
+    });
     return () => {
       window.removeEventListener('online', updateConnection);
       window.removeEventListener('offline', updateConnection);
+      unsubQueue();
     };
   }, []);
+
+  // Keep active navigation tab strictly synchronized with current user role
+  useEffect(() => {
+    if (currentUser?.role === 'recruiter') {
+      if (activeTab !== 'post-manage') {
+        setActiveTab('post-manage');
+      }
+    } else if (currentUser?.role === 'seeker') {
+      if (activeTab === 'post-manage') {
+        setActiveTab('explore');
+      }
+    }
+  }, [currentUser?.role, activeTab]);
 
   const unreadNotifsCount = useMemo(() => {
     return notifications.filter(n => !n.is_read).length;
   }, [notifications]);
 
+  // Sentence Transformer AI Model state
+  const [aiModelStatus, setAiModelStatus] = useState<{ status: ModelStatus; progress: number; errorMessage: string | null }>(
+    () => semanticService.getStatus()
+  );
+  const [asyncEnrichedJobs, setAsyncEnrichedJobs] = useState<Job[]>([]);
+
+  // Subscribe to Sentence Transformer AI Model state
+  useEffect(() => {
+    const unsub = semanticService.subscribe((status, progress, error) => {
+      setAiModelStatus({ status, progress, errorMessage: error || null });
+    });
+    // Kick off Sentence Transformer initialization in background
+    semanticService.initModel().catch(() => { });
+    return () => unsub();
+  }, []);
+
+  // Enrich jobs asynchronously using live Sentence Transformer model and Hybrid AI Ranking
+  useEffect(() => {
+    let isCurrent = true;
+    if (currentSeeker && rawJobs.length > 0) {
+      const seekerReviews = sqliteManager.getReviews(currentSeeker.id);
+      enrichJobsForSeekerAsync(rawJobs, currentSeeker, {
+        skillDemandStats,
+        reviews: seekerReviews
+      }).then(res => {
+        if (isCurrent) {
+          setAsyncEnrichedJobs(res);
+        }
+      }).catch(err => {
+        console.warn('Async hybrid enrichment notice:', err);
+      });
+    }
+    return () => { isCurrent = false; };
+  }, [rawJobs, currentSeeker, aiModelStatus.status, skillDemandStats]);
+
   // Compute enriched jobs for seeker (distance + match score)
   const enrichedJobs = useMemo(() => {
+    if (asyncEnrichedJobs.length === rawJobs.length && asyncEnrichedJobs.length > 0) {
+      return asyncEnrichedJobs;
+    }
     if (!currentSeeker) return rawJobs;
-    return enrichJobsForSeeker(rawJobs, currentSeeker);
-  }, [rawJobs, currentSeeker]);
+    const seekerReviews = sqliteManager.getReviews(currentSeeker.id);
+    return enrichJobsForSeeker(rawJobs, currentSeeker, {
+      skillDemandStats,
+      reviews: seekerReviews
+    });
+  }, [asyncEnrichedJobs, rawJobs, currentSeeker, skillDemandStats]);
 
   // Jobs within selected radius
   const jobsWithinRadius = useMemo(() => {
@@ -195,12 +267,26 @@ export const App: React.FC = () => {
     });
   }, [enrichedJobs, radiusKm]);
 
+  // Phase 8: Record continuous recommendation outcomes for top recommendations
+  useEffect(() => {
+    if (currentSeeker && jobsWithinRadius.length > 0) {
+      jobsWithinRadius.slice(0, 10).forEach(job => {
+        sqliteManager.recordRecommendationOutcome(
+          job.id,
+          currentSeeker.id,
+          job.matchScore,
+          job.recruiter_id
+        );
+      });
+    }
+  }, [currentSeeker?.id, jobsWithinRadius]);
+
   // Actions
   const handleClaimJob = (jobId: string) => {
     if (!currentSeeker) return;
     try {
       sqliteManager.claimJob(jobId, currentSeeker.id);
-      
+
       const targetJob = rawJobs.find(j => j.id === jobId) || enrichedJobs.find(j => j.id === jobId);
       const recruiter = targetJob ? sqliteManager.getUserById(targetJob.recruiter_id) : null;
       const recruiterName = recruiter?.name || targetJob?.recruiter_name || 'Recruiter';
@@ -221,7 +307,7 @@ export const App: React.FC = () => {
         sqliteManager.addNotification({
           user_id: targetJob.recruiter_id,
           title: `📩 New Applicant! ${currentSeeker.name} claimed "${targetJob.title}"`,
-          message: `Applicant: ${currentSeeker.name} | Phone: ${currentSeeker.phone} | Age: ${currentSeeker.age} | Skills: ${(currentSeeker.skills || []).join(', ') || 'General'}. Click to call, WhatsApp, or Offline SMS them directly!`,
+          message: `Applicant: ${currentSeeker.name} | Phone: ${currentSeeker.phone} | Age: ${currentSeeker.age} | Experience: ${currentSeeker.experience ?? 0} yrs | Skills: ${(currentSeeker.skills || []).join(', ') || 'General'}. Contact them directly!`,
           type: 'claim',
           is_read: false,
           linkJobId: jobId
@@ -233,17 +319,30 @@ export const App: React.FC = () => {
       // In Offline Mode, automatically trigger native cellular SMS to Recruiter's phone number
       if (!isOnline && recruiterPhone) {
         const cleanRecruiterPhone = recruiterPhone.replace(/[^0-9+]/g, '');
-        const smsMsg = `Hi ${recruiterName}, I have claimed your gig "${targetJob?.title || 'Gig'}" on Skill2Work. My Name: ${currentSeeker.name}, Phone: ${currentSeeker.phone}. Please contact me!`;
+        const smsMsg = `Hi ${recruiterName}, I have claimed your gig "${targetJob?.title || 'Gig'}" on Talent2Task. My Name: ${currentSeeker.name}, Phone: ${currentSeeker.phone}. Please contact me!`;
         triggerOfflineSms(cleanRecruiterPhone, smsMsg, showToast);
       }
       if (selectedJob && selectedJob.id === jobId) {
-        setSelectedJob(prev => prev ? { 
-          ...prev, 
-          status: 'CLAIMED', 
+        setSelectedJob(prev => prev ? {
+          ...prev,
+          status: 'CLAIMED',
           claimed_by: currentSeeker.id,
           claimed_by_name: currentSeeker.name,
           claimed_by_phone: currentSeeker.phone
         } : null);
+      }
+
+      // Automatically trigger accurate Directions & Route Navigation
+      if (targetJob) {
+        const claimedTarget: Job = {
+          ...targetJob,
+          status: 'CLAIMED',
+          claimed_by: currentSeeker.id,
+          claimed_by_name: currentSeeker.name,
+          claimed_by_phone: currentSeeker.phone
+        };
+        setIsInitialClaimDirections(true);
+        setActiveDirectionsJob(claimedTarget);
       }
     } catch (err: any) {
       alert('Error claiming job: ' + err.message);
@@ -271,10 +370,48 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleConfirmPayment = async (
+    paymentMethod: 'UPI' | 'Card' | 'Net Banking' | 'Wallet'
+  ) => {
+    if (!payModalJob) return null;
+
+    const existingTxn = sqliteManager.getTransactionByJobId(payModalJob.id);
+    if (existingTxn) {
+      showToast('Payment has already been completed for this job seeker.');
+      return existingTxn;
+    }
+
+    const activeRecruiter = (currentUser?.role === 'recruiter' ? currentUser : null)
+      || currentRecruiter
+      || currentUser
+      || { id: payModalJob.recruiter_id || 'usr_recruiter_1', name: 'Recruiter' };
+
+    const seekerId = payModalJob.claimed_by || 'usr_seeker_1';
+    const seeker = users.find(u => u.id === seekerId) || sqliteManager.getUserById(seekerId);
+    const seekerName = seeker?.name || payModalJob.claimed_by_name || 'Assigned Seeker';
+    const recruiterName = activeRecruiter.name || 'Recruiter';
+
+    const txn = sqliteManager.createPaymentTransaction({
+      job_id: payModalJob.id,
+      job_title: payModalJob.title,
+      recruiter_id: activeRecruiter.id,
+      recruiter_name: recruiterName,
+      seeker_id: seekerId,
+      seeker_name: seekerName,
+      amount: payModalJob.payout_amount,
+      payout_unit: payModalJob.payout_unit,
+      payment_method: paymentMethod
+    });
+
+    reloadData();
+    showToast(`Payment Successful: ₹${payModalJob.payout_amount} paid to ${seekerName}`);
+    return txn;
+  };
+
   const handleCreateJob = (jobData: Omit<Job, 'id' | 'created_at'>) => {
     try {
       const newJobId = sqliteManager.createJob(jobData);
-      
+
       // Send broadcast notification
       sqliteManager.addNotification({
         user_id: 'all',
@@ -295,8 +432,44 @@ export const App: React.FC = () => {
     try {
       sqliteManager.upsertUser(updatedUser);
       showToast(t.toastProfileUpdated);
+      reloadData();
     } catch (err: any) {
       alert('Error saving profile: ' + err.message);
+    }
+  };
+
+  const handleRequestLiveGps = async () => {
+    setIsLocating(true);
+    try {
+      const res = await requestBrowserLocation();
+      if (currentUser) {
+        const updatedUser: User = {
+          ...currentUser,
+          latitude: res.latitude,
+          longitude: res.longitude,
+          city: res.city || currentUser.city || 'Chennai'
+        };
+        handleSaveProfile(updatedUser);
+      }
+      showToast(`📍 Live GPS Detected: ${res.city || 'Tamil Nadu'} (${res.latitude.toFixed(4)}, ${res.longitude.toFixed(4)})`);
+    } catch (err: any) {
+      showToast('⚠️ Location access was denied or timed out. You can select your Tamil Nadu city manually.');
+    } finally {
+      setIsLocating(false);
+    }
+  };
+
+  const handleCitySelect = (cityName: string) => {
+    const cityLocs = getLocationsByCity(cityName);
+    if (currentUser && cityLocs.length > 0) {
+      const updatedUser: User = {
+        ...currentUser,
+        city: cityName,
+        latitude: cityLocs[0].lat,
+        longitude: cityLocs[0].lng
+      };
+      handleSaveProfile(updatedUser);
+      showToast(`📍 Region updated to ${cityName}, Tamil Nadu`);
     }
   };
 
@@ -337,26 +510,34 @@ export const App: React.FC = () => {
     const newUser = sqliteManager.createUser(userData);
     reloadData();
     setCurrentUserId(newUser.id);
-    setCurrentRole(newUser.role);
+    if (newUser.role === 'recruiter') {
+      setActiveTab('post-manage');
+    } else {
+      setActiveTab('explore');
+    }
     setIsAuthenticated(true);
-    localStorage.setItem('skill2work_active_user_id', newUser.id);
-    showToast(`🎉 Account created for ${newUser.name}! Saved to SQLite DB.`);
+    localStorage.setItem('talent2task_active_user_id', newUser.id);
+    showToast(`🎉 Account created for ${newUser.name}!`);
     return newUser;
   }, [reloadData, showToast]);
 
   const handleLoginUser = useCallback((user: User) => {
     reloadData();
     setCurrentUserId(user.id);
-    setCurrentRole(user.role);
+    if (user.role === 'recruiter') {
+      setActiveTab('post-manage');
+    } else {
+      setActiveTab('explore');
+    }
     setIsAuthenticated(true);
-    localStorage.setItem('skill2work_active_user_id', user.id);
+    localStorage.setItem('talent2task_active_user_id', user.id);
     showToast(`👋 Welcome back, ${user.name}!`);
   }, [reloadData, showToast]);
 
   const handleLogout = useCallback(() => {
     setIsAuthenticated(false);
     setCurrentUserId(null);
-    localStorage.removeItem('skill2work_active_user_id');
+    localStorage.removeItem('talent2task_active_user_id');
     showToast('Signed out successfully.');
   }, [showToast]);
 
@@ -364,20 +545,20 @@ export const App: React.FC = () => {
     return (
       <div className="min-h-screen bg-white flex flex-col items-center justify-center text-slate-900 space-y-4 p-4">
         <div className="relative flex items-center justify-center w-20 h-20 rounded-3xl bg-slate-50 border border-slate-200 p-2 shadow-xl shadow-sky-500/10 animate-pulse">
-          <img src="/logo.png" alt="Skill2Work Logo" className="w-full h-full object-contain" />
+          <img src={logoImg} alt="Talent2Task Logo" className="w-full h-full object-contain" />
         </div>
         <h2 className="font-heading text-xl font-bold flex items-center gap-1 text-slate-900">
-          <span>Skill</span><span className="text-sky-500">2</span><span>Work</span>
+          <span>Talent</span><span className="text-sky-500">2</span><span>Task</span>
         </h2>
         <p className="text-xs text-sky-600 font-bold tracking-wider uppercase">{t.footerTagline}</p>
-        <p className="text-[11px] text-slate-500">Loading Vellore SQLite Local Database & 3km Radar Engine...</p>
+        <p className="text-[11px] text-slate-500">Loading Tamil Nadu SQLite Database & Hyperlocal Radar Engine...</p>
       </div>
     );
   }
 
   if (!isAuthenticated) {
     return (
-      <LoginPage 
+      <LoginPage
         onLogin={handleLoginUser}
         onCreateAccount={handleRegisterUser}
         users={users}
@@ -388,22 +569,45 @@ export const App: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-sky-500 selection:text-white">
       {!isOnline && (
-        <div className="sticky top-0 z-[60] w-full bg-sky-500 px-4 py-2 text-center text-xs font-bold text-white shadow-sm">
-          {t.offlineAlert}
+        <div className="sticky top-0 z-[60] w-full bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 px-4 py-2 text-center text-xs font-bold text-white shadow-md flex items-center justify-center gap-3 flex-wrap">
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+            <span>{t.offlineAlert || 'You are in Offline Mode. All changes are saved locally in SQLite.'}</span>
+          </span>
+          {pendingQueueCount > 0 && (
+            <span className="bg-amber-800/60 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold border border-amber-300/40">
+              {pendingQueueCount} {pendingQueueCount === 1 ? 'action queued' : 'actions queued'}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={async () => {
+              const res = await offlineQueueService.flushQueue();
+              reloadData();
+              if (res.processed > 0) {
+                showToast(`⚡ Synchronized ${res.processed} offline action(s)!`);
+              } else {
+                showToast('Offline actions are safely stored in local database.');
+              }
+            }}
+            className="px-2.5 py-0.5 rounded-lg bg-white text-amber-900 text-[11px] font-extrabold hover:bg-amber-50 shadow-xs transition cursor-pointer"
+          >
+            Sync Now
+          </button>
         </div>
       )}
-      
+
       {/* Toast Notification Banner */}
       {toastMessage && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl bg-slate-900 text-white shadow-2xl shadow-slate-900/20 border border-slate-800 text-xs sm:text-sm font-bold flex items-center gap-2 animate-bounce">
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl bg-slate-900/95 backdrop-blur-md text-white shadow-2xl shadow-slate-900/25 border border-slate-700/80 text-xs sm:text-sm font-bold flex items-center gap-2 animate-toast-in">
           <span>{toastMessage}</span>
         </div>
       )}
 
       {/* Navigation */}
       <Navbar
-        currentRole={effectiveRole}
-        onRoleChange={setCurrentRole}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
         currentUser={currentUser}
         unreadNotifsCount={unreadNotifsCount}
         isOnline={isOnline}
@@ -415,206 +619,246 @@ export const App: React.FC = () => {
           });
         }}
         onOpenProfile={() => setIsProfileModalOpen(true)}
-        onOpenSqlConsole={() => setIsSqlConsoleOpen(true)}
-        onOpenPostJob={() => setIsPostJobModalOpen(true)}
         onOpenNotifications={() => setIsNotificationsOpen(true)}
         onOpenCommunityDemand={() => setIsCommunityDemandOpen(true)}
-        onOpenDeviceSync={() => setIsDeviceSyncOpen(true)}
-        syncStatus={syncStatus}
-        connectedDevicesCount={connectedDevicesCount}
+        onOpenPaymentHistory={() => setIsPaymentHistoryOpen(true)}
         onLogout={handleLogout}
       />
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        
-        {/* ===================== SEEKER PORTAL ===================== */}
-        {effectiveRole === 'seeker' && (
-          <div className="space-y-6 animate-fadeIn">
-            
-            {/* Top Navigation Tabs & View Toggles */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              
-              {/* Tabs: Find Gigs vs My Claimed Gigs */}
-              <div className="flex items-center gap-1.5 bg-white p-1.5 rounded-2xl border border-slate-200 shadow-sm self-start sm:self-auto">
-                <button
-                  onClick={() => setSeekerActiveTab('all')}
-                  className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 ${
-                    seekerActiveTab === 'all'
-                      ? 'bg-sky-500 text-white shadow-md shadow-sky-500/20'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  }`}
-                >
-                  <Radio className="w-4 h-4" />
-                  <span>{t.allGigsTab}</span>
-                </button>
 
-                <button
-                  onClick={() => setSeekerActiveTab('my-gigs')}
-                  className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 ${
-                    seekerActiveTab === 'my-gigs'
-                      ? 'bg-sky-500 text-white shadow-md shadow-sky-500/20'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  }`}
-                >
-                  <ShieldCheck className="w-4 h-4" />
-                  <span>{t.myGigsTab}</span>
-                </button>
+        {/* ===================== TAB 1: EXPLORE GIGS ===================== */}
+        {activeTab === 'explore' && (
+          <div className="space-y-6 animate-fadeIn">
+
+            {/* GPS & Hyperlocal Tamil Nadu Prompt Banner */}
+            <div className="bg-gradient-to-r from-sky-50 via-sky-100/70 to-blue-50 border border-sky-200/80 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-sky-500 text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5 sm:mt-0">
+                  <Navigation className={`w-5 h-5 ${isLocating ? 'animate-spin' : ''}`} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-sm sm:text-base font-bold text-slate-900">
+                      {t.gpsPromptTitle}
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-sky-200/70 text-sky-800">
+                      Tamil Nadu Radar
+                    </span>
+
+                    {/* Sentence Transformer AI Model Status Badge */}
+                    {aiModelStatus.status === 'ready' ? (
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-800 border border-emerald-300 flex items-center gap-1 shadow-2xs">
+                        <Sparkles className="w-3 h-3 text-emerald-600" />
+                        Sentence Transformer AI Active
+                      </span>
+                    ) : aiModelStatus.status === 'loading' ? (
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-50 text-amber-800 border border-amber-300 flex items-center gap-1 animate-pulse">
+                        <Sparkles className="w-3 h-3 text-amber-600" />
+                        Loading MiniLM Transformer ({aiModelStatus.progress}%)
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-sky-50 text-sky-700 border border-sky-300 flex items-center gap-1">
+                        <Sparkles className="w-3 h-3 text-sky-500" />
+                        AI Semantic Matching Active
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-600 mt-0.5">
+                    {t.gpsPromptSubtitle}
+                  </p>
+                </div>
               </div>
 
-              {/* View Mode (List vs Map vs Both on Desktop) */}
-              {seekerActiveTab === 'all' && (
-                <div className="flex items-center gap-1 bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm text-xs font-semibold self-end sm:self-auto">
-                  <button
-                    onClick={() => setViewMode('both')}
-                    className={`hidden lg:block px-3 py-1.5 rounded-lg transition-colors ${
-                      viewMode === 'both' ? 'bg-slate-100 text-slate-900 font-bold' : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    {t.splitView}
-                  </button>
-                  <button
-                    onClick={() => setViewMode('list')}
-                    className={`px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 ${
-                      viewMode === 'list' ? 'bg-sky-500 text-white font-bold shadow-sm' : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    <List className="w-3.5 h-3.5" />
-                    <span>{t.listViewTab}</span>
-                  </button>
-                  <button
-                    onClick={() => setViewMode('map')}
-                    className={`px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 ${
-                      viewMode === 'map' ? 'bg-sky-500 text-white font-bold shadow-sm' : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    <MapIcon className="w-3.5 h-3.5" />
-                    <span>{t.mapViewTab}</span>
-                  </button>
-                </div>
-              )}
-
+              <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                <button
+                  type="button"
+                  onClick={handleRequestLiveGps}
+                  disabled={isLocating}
+                  className="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-sky-500 hover:bg-sky-600 text-white shadow-sm hover:shadow-md transition-all flex items-center gap-2 cursor-pointer"
+                >
+                  <Navigation className={`w-4 h-4 ${isLocating ? 'animate-spin' : ''}`} />
+                  <span>{isLocating ? t.locating : t.useCurrentGps}</span>
+                </button>
+              </div>
             </div>
 
-            {/* Tab: All Gigs */}
-            {seekerActiveTab === 'all' && (
-              <>
-                {/* AI Skill Gap & Career Recommendations */}
-                <SkillGapRecommendations
-                  currentUser={currentSeeker}
-                  jobs={rawJobs}
-                  language={language}
-                  onAddSkill={handleAddSkillToProfile}
-                  onOpenProfile={() => setIsProfileModalOpen(true)}
-                />
+            {/* AI Skill Gap & Career Recommendations */}
+            <SkillGapRecommendations
+              currentUser={currentSeeker}
+              jobs={rawJobs}
+              language={language}
+              demandStats={skillDemandStats}
+              onAddSkill={handleAddSkillToProfile}
+              onOpenProfile={() => setIsProfileModalOpen(true)}
+            />
 
-                {/* 3km Radius Radar Controller */}
-                <RadiusFilter
-                  radiusKm={radiusKm}
-                  onRadiusChange={setRadiusKm}
-                  currentUser={currentSeeker}
-                  onOpenProfile={() => setIsProfileModalOpen(true)}
-                  matchedCount={jobsWithinRadius.length}
-                />
+            {/* Radar Controller & Radius Filter */}
+            <RadiusFilter
+              radiusKm={radiusKm}
+              onRadiusChange={setRadiusKm}
+              currentUser={currentSeeker}
+              onOpenProfile={() => setIsProfileModalOpen(true)}
+              matchedCount={jobsWithinRadius.length}
+              onCitySelect={handleCitySelect}
+              onLiveGpsClick={handleRequestLiveGps}
+              isLocating={isLocating}
+            />
 
-                {/* Content based on View Mode */}
-                {viewMode === 'both' ? (
-                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                    {/* Left: Cards List (7 cols) */}
-                    <div className="lg:col-span-7 space-y-4">
-                      <JobList
-                        jobs={enrichedJobs}
-                        currentUser={currentSeeker}
-                        onClaimJob={handleClaimJob}
-                        onViewDetails={(job) => setSelectedJob(job)}
-                        radiusKm={radiusKm}
-                      />
-                    </div>
+            {/* View Mode (List vs Map vs Both on Desktop) */}
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <h3 className="font-heading text-sm font-bold text-slate-800">
+                  {jobsWithinRadius.length} {t.gigsFound}
+                </h3>
+              </div>
 
-                    {/* Right: Sticky Map (5 cols) */}
-                    <div className="lg:col-span-5 h-[620px] sticky top-24">
-                      <VelloreMapView
-                        user={currentSeeker}
-                        jobs={jobsWithinRadius}
-                        radiusKm={radiusKm}
-                        selectedJobId={selectedJob?.id}
-                        onSelectJob={(job) => setSelectedJob(job)}
-                        onClaimJob={handleClaimJob}
-                        quickLocations={VELLORE_LOCATIONS}
-                        onSelectCoordinates={(lat, lng) => {
-                          handleSaveProfile({ ...currentSeeker, latitude: lat, longitude: lng });
-                        }}
-                      />
-                    </div>
-                  </div>
-                ) : viewMode === 'list' ? (
+              <div className="flex items-center gap-1 bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm text-xs font-semibold">
+                <button
+                  onClick={() => setViewMode('both')}
+                  className={`hidden lg:block px-3 py-1.5 rounded-lg transition-colors ${viewMode === 'both' ? 'bg-slate-100 text-slate-900 font-bold' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                >
+                  {t.splitView}
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 ${viewMode === 'list' ? 'bg-sky-500 text-white font-bold shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                >
+                  <List className="w-3.5 h-3.5" />
+                  <span>{t.listViewTab}</span>
+                </button>
+                <button
+                  onClick={() => setViewMode('map')}
+                  className={`px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 ${viewMode === 'map' ? 'bg-sky-500 text-white font-bold shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                >
+                  <MapIcon className="w-3.5 h-3.5" />
+                  <span>{t.mapViewTab}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Content based on View Mode */}
+            {viewMode === 'both' ? (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                {/* Left: Cards List (7 cols) */}
+                <div className="lg:col-span-7 space-y-4">
                   <JobList
                     jobs={enrichedJobs}
                     currentUser={currentSeeker}
                     onClaimJob={handleClaimJob}
                     onViewDetails={(job) => setSelectedJob(job)}
+                    onGetDirections={(job) => {
+                      setIsInitialClaimDirections(false);
+                      setActiveDirectionsJob(job);
+                    }}
                     radiusKm={radiusKm}
+                    searchQuery={searchQuery}
+                    onSearchChange={setSearchQuery}
+                    selectedCategory={selectedCategory}
+                    onCategoryChange={setSelectedCategory}
                   />
-                ) : (
-                  <div className="h-[600px]">
-                    <VelloreMapView
-                      user={currentSeeker}
-                      jobs={jobsWithinRadius}
-                      radiusKm={radiusKm}
-                      selectedJobId={selectedJob?.id}
-                      onSelectJob={(job) => setSelectedJob(job)}
-                      onClaimJob={handleClaimJob}
-                      quickLocations={VELLORE_LOCATIONS}
-                      onSelectCoordinates={(lat, lng) => {
-                        handleSaveProfile({ ...currentSeeker, latitude: lat, longitude: lng });
-                      }}
-                    />
-                  </div>
-                )}
-              </>
-            )}
+                </div>
 
-            {/* Tab: My Claimed Gigs */}
-            {seekerActiveTab === 'my-gigs' && (
-              <MyClaimedJobs
+                {/* Right: Sticky Map (5 cols) */}
+                <div className="lg:col-span-5 h-[620px] sticky top-24">
+                  <VelloreMapView
+                    user={currentSeeker}
+                    jobs={jobsWithinRadius}
+                    radiusKm={radiusKm}
+                    selectedJobId={selectedJob?.id}
+                    onSelectJob={(job) => setSelectedJob(job)}
+                    onClaimJob={handleClaimJob}
+                    onGetDirections={(job) => {
+                      setIsInitialClaimDirections(false);
+                      setActiveDirectionsJob(job);
+                    }}
+                    quickLocations={TAMIL_NADU_LOCATIONS.filter(l => l.popular)}
+                    onSelectCoordinates={(lat, lng) => {
+                      handleSaveProfile({ ...currentSeeker, latitude: lat, longitude: lng });
+                    }}
+                  />
+                </div>
+              </div>
+            ) : viewMode === 'list' ? (
+              <JobList
                 jobs={enrichedJobs}
                 currentUser={currentSeeker}
+                onClaimJob={handleClaimJob}
                 onViewDetails={(job) => setSelectedJob(job)}
-                onExploreGigs={() => setSeekerActiveTab('all')}
+                onGetDirections={(job) => {
+                  setIsInitialClaimDirections(false);
+                  setActiveDirectionsJob(job);
+                }}
+                radiusKm={radiusKm}
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                selectedCategory={selectedCategory}
+                onCategoryChange={setSelectedCategory}
               />
+            ) : (
+              <div className="h-[600px]">
+                <VelloreMapView
+                  user={currentSeeker}
+                  jobs={jobsWithinRadius}
+                  radiusKm={radiusKm}
+                  selectedJobId={selectedJob?.id}
+                  onSelectJob={(job) => setSelectedJob(job)}
+                  onClaimJob={handleClaimJob}
+                  onGetDirections={(job) => {
+                    setIsInitialClaimDirections(false);
+                    setActiveDirectionsJob(job);
+                  }}
+                  quickLocations={TAMIL_NADU_LOCATIONS.filter(l => l.popular)}
+                  onSelectCoordinates={(lat, lng) => {
+                    handleSaveProfile({ ...currentSeeker, latitude: lat, longitude: lng });
+                  }}
+                />
+              </div>
             )}
 
           </div>
         )}
 
-        {/* ===================== RECRUITER PORTAL ===================== */}
-        {effectiveRole === 'recruiter' && (
+        {/* ===================== TAB 2: MY APPLICATIONS ===================== */}
+        {activeTab === 'my-gigs' && (
           <div className="space-y-6 animate-fadeIn">
-            
+            <MyClaimedJobs
+              jobs={enrichedJobs}
+              currentUser={currentSeeker}
+              onViewDetails={(job) => setSelectedJob(job)}
+              onGetDirections={(job) => {
+                setIsInitialClaimDirections(false);
+                setActiveDirectionsJob(job);
+              }}
+              onExploreGigs={() => setActiveTab('explore')}
+            />
+          </div>
+        )}
+
+        {/* ===================== TAB 3: POST & MANAGE ===================== */}
+        {activeTab === 'post-manage' && (
+          <div className="space-y-6 animate-fadeIn">
+
             {/* Recruiter Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 glass-panel p-5 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 glass-panel p-5 rounded-2xl border border-slate-200 shadow-sm bg-white">
               <div>
                 <h2 className="font-heading text-xl font-bold text-slate-900 flex items-center gap-2">
                   <Briefcase className="w-5 h-5 text-sky-500" />
                   <span>{t.recruiterHeading}</span>
                 </h2>
                 <p className="text-xs text-slate-600 mt-1">
-                  {t.activeRecruiter}: <span className="text-slate-900 font-bold">{currentRecruiter.name}</span> • {currentRecruiter.phone}
+                  {t.activeRecruiter}: <span className="text-slate-900 font-bold">{currentUser?.name}</span> • {currentUser?.phone} • {currentUser?.city || 'Tamil Nadu'}
                 </p>
               </div>
 
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setIsCommunityDemandOpen(true)}
-                  className="px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-xs flex items-center gap-1.5 transition-all"
-                >
-                  <BarChart3 className="w-4 h-4 text-sky-600" />
-                  <span>{t.marketDemand}</span>
-                </button>
-
-                <button
                   onClick={() => setIsPostJobModalOpen(true)}
-                  className="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-600 hover:to-sky-700 text-white shadow-md shadow-sky-500/20 flex items-center gap-2 transition-all"
+                  className="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-600 hover:to-sky-700 text-white shadow-md shadow-sky-500/20 flex items-center gap-2 transition-all cursor-pointer"
                 >
                   <Sparkles className="w-4 h-4" />
                   <span>{t.postNewGigBtn}</span>
@@ -625,11 +869,12 @@ export const App: React.FC = () => {
             {/* Recruiter Job List */}
             <RecruiterJobList
               jobs={rawJobs}
-              recruiter={currentRecruiter}
+              recruiter={currentUser || currentRecruiter}
               onOpenPostModal={() => setIsPostJobModalOpen(true)}
               onUpdateStatus={handleUpdateJobStatus}
               onDeleteJob={handleDeleteJob}
               onOpenReviewModal={(job) => setJobForReview(job)}
+              onOpenPayModal={(job) => setPayModalJob(job)}
             />
 
           </div>
@@ -641,10 +886,10 @@ export const App: React.FC = () => {
       <footer className="border-t border-slate-200 bg-white py-8 mt-12 text-xs text-slate-500">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="Skill2Work" className="w-8 h-8 rounded-lg object-contain bg-slate-50 p-0.5 border border-slate-200" />
+            <img src={logoImg} alt="Talent2Task" className="w-8 h-8 rounded-lg object-contain bg-slate-50 p-0.5 border border-slate-200" />
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-bold text-slate-900">Skill2Work</span>
+                <span className="font-bold text-slate-900">Talent2Task</span>
                 <span>•</span>
                 <span className="text-sky-600 font-bold uppercase tracking-wider text-[10px]">{t.footerTagline}</span>
               </div>
@@ -655,16 +900,10 @@ export const App: React.FC = () => {
           <div className="flex items-center gap-4 text-[11px]">
             <button
               onClick={() => setIsCommunityDemandOpen(true)}
-              className="inline-flex items-center gap-1 text-slate-700 hover:text-slate-900 font-medium"
+              className="inline-flex items-center gap-1 text-slate-700 hover:text-slate-900 font-medium cursor-pointer"
             >
               <BarChart3 className="w-3.5 h-3.5 text-sky-500" />
               {t.trends}
-            </button>
-            <button
-              onClick={() => setIsSqlConsoleOpen(true)}
-              className="text-sky-600 hover:text-sky-700 hover:underline font-semibold"
-            >
-              {t.sqlInspector}
             </button>
           </div>
         </div>
@@ -678,12 +917,38 @@ export const App: React.FC = () => {
         currentUser={currentUser}
         onClose={() => setSelectedJob(null)}
         onClaim={handleClaimJob}
+        onGetDirections={(job) => {
+          setIsInitialClaimDirections(false);
+          setActiveDirectionsJob(job);
+        }}
+      />
+
+      {/* Post-Claim Accurate GPS Directions & Route Navigation Modal */}
+      <GigDirectionsModal
+        job={activeDirectionsJob}
+        currentUser={currentUser || currentSeeker}
+        isOpen={Boolean(activeDirectionsJob)}
+        isInitialClaim={isInitialClaimDirections}
+        onClose={() => {
+          setActiveDirectionsJob(null);
+          setIsInitialClaimDirections(false);
+        }}
       />
 
       {/* Seeker Profile & Location Modal */}
-      {currentSeeker && (
+      {(currentUser?.role === 'seeker' || (!currentUser && currentSeeker)) && (
         <SeekerProfileModal
-          user={currentSeeker}
+          user={currentUser || currentSeeker}
+          isOpen={isProfileModalOpen}
+          onClose={() => setIsProfileModalOpen(false)}
+          onSave={handleSaveProfile}
+        />
+      )}
+
+      {/* Recruiter Profile & Location Modal */}
+      {(currentUser?.role === 'recruiter' || (!currentUser && currentRecruiter)) && (
+        <RecruiterProfileModal
+          user={currentUser || currentRecruiter}
           isOpen={isProfileModalOpen}
           onClose={() => setIsProfileModalOpen(false)}
           onSave={handleSaveProfile}
@@ -691,20 +956,18 @@ export const App: React.FC = () => {
       )}
 
       {/* Recruiter Post Job Modal */}
-      {currentRecruiter && (
+      {(currentUser || currentRecruiter) && (
         <PostJobModal
-          recruiter={currentRecruiter}
+          recruiter={currentUser || currentRecruiter}
           isOpen={isPostJobModalOpen}
-          onClose={() => setIsPostJobModalOpen(false)}
+          onClose={() => {
+            setIsPostJobModalOpen(false);
+            setPostJobInitialData(null);
+          }}
           onSubmit={handleCreateJob}
+          initialData={postJobInitialData}
         />
       )}
-
-      {/* SQLite Console / Terminal Modal */}
-      <SqliteConsoleModal
-        isOpen={isSqlConsoleOpen}
-        onClose={() => setIsSqlConsoleOpen(false)}
-      />
 
       {/* Notifications Modal */}
       {isNotificationsOpen && (
@@ -725,6 +988,8 @@ export const App: React.FC = () => {
       {isCommunityDemandOpen && (
         <CommunityDemandModal
           stats={skillDemandStats}
+          jobs={rawJobs}
+          initialCity={currentUser?.city || 'Tamil Nadu'}
           language={language}
           onClose={() => setIsCommunityDemandOpen(false)}
         />
@@ -741,11 +1006,25 @@ export const App: React.FC = () => {
         />
       )}
 
-      {/* Multi-Device Real-Time Sync Hub Modal */}
-      <DeviceSyncModal
-        isOpen={isDeviceSyncOpen}
-        onClose={() => setIsDeviceSyncOpen(false)}
-      />
+      {/* Pay Now Modal (Phase 35 — The ONLY payment action is 'Pay Now') */}
+      {payModalJob && (
+        <PayNowModal
+          job={payModalJob}
+          isOpen={Boolean(payModalJob)}
+          onClose={() => setPayModalJob(null)}
+          onConfirmPayment={handleConfirmPayment}
+        />
+      )}
+
+      {/* Payment History Modal (Phase 35 — Dynamic real application data) */}
+      {currentUser && (
+        <PaymentHistoryModal
+          user={currentUser}
+          transactions={sqliteManager.getTransactionsByUser(currentUser.id)}
+          isOpen={isPaymentHistoryOpen}
+          onClose={() => setIsPaymentHistoryOpen(false)}
+        />
+      )}
 
       {/* Real-time Gig Radar Alert Notification */}
       <LiveGigAlert
@@ -755,6 +1034,39 @@ export const App: React.FC = () => {
           setLiveAlertJob(null);
         }}
         onDismiss={() => setLiveAlertJob(null)}
+      />
+
+      {/* Talent2Task Action-Oriented AI Chat Assistant (Floating Widget) */}
+      <ChatAssistantModal
+        currentUser={currentUser}
+        jobs={enrichedJobs.length > 0 ? enrichedJobs : rawJobs}
+        users={users}
+        skillDemandStats={skillDemandStats}
+        currentCoords={currentUser ? { latitude: currentUser.latitude, longitude: currentUser.longitude } : null}
+        radiusKm={radiusKm}
+        selectedJob={selectedJob}
+        onSelectJob={(job) => setSelectedJob(job)}
+        onClaimJob={handleClaimJob}
+        onOpenPostJob={(initialData) => {
+          setPostJobInitialData(initialData || null);
+          setIsPostJobModalOpen(true);
+        }}
+        onNavigateTab={(tab, view) => {
+          setActiveTab(tab);
+          if (view) setViewMode(view);
+        }}
+        onSetRadius={(r) => setRadiusKm(r)}
+        onSelectCity={handleCitySelect}
+        onRequestLiveGps={handleRequestLiveGps}
+        onFilterJobs={(query, category) => {
+          if (query !== undefined) setSearchQuery(query);
+          if (category !== undefined) setSelectedCategory(category);
+          setActiveTab('explore');
+        }}
+        onAddSkillToProfile={handleAddSkillToProfile}
+        onOpenCommunityDemand={() => setIsCommunityDemandOpen(true)}
+        onOpenProfile={() => setIsProfileModalOpen(true)}
+        onDeleteJob={handleDeleteJob}
       />
 
     </div>

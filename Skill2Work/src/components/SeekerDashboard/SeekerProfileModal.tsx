@@ -6,12 +6,21 @@ import {
   Navigation, 
   Check, 
   Plus, 
-  Save
+  Save,
+  Briefcase
 } from 'lucide-react';
-import type { User, TimeSlot } from '../../types';
+import type { User, TimeSlot, TamilNaduLocation } from '../../types';
 import { ALL_SKILL_OPTIONS, TIME_SLOT_OPTIONS, localizeContent } from '../../i18n/translations';
-import { VELLORE_LOCATIONS, getClosestLandmark } from '../../services/geoService';
+import { 
+  TAMIL_NADU_CITIES, 
+  getLocationsByCity, 
+  getClosestLandmark, 
+  requestBrowserLocation 
+} from '../../services/geoService';
 import { useLanguage } from '../../i18n/LanguageContext';
+import { SearchableSelect } from '../common/SearchableSelect';
+import { ReliabilityBadge } from '../common/ReliabilityBadge';
+import { reliabilityService } from '../../services/reliabilityService';
 
 interface SeekerProfileModalProps {
   user: User;
@@ -30,7 +39,11 @@ export const SeekerProfileModal: React.FC<SeekerProfileModalProps> = ({
 
   const [name, setName] = useState(user.name);
   const [age, setAge] = useState(user.age);
+  const [experience, setExperience] = useState<number>(user.experience ?? 0);
   const [phone, setPhone] = useState(user.phone);
+  const [city, setCity] = useState<string>(user.city || 'Chennai');
+  const [address, setAddress] = useState<string>(user.address || '');
+  const [landmark, setLandmark] = useState<string>(user.landmark || '');
   const [skillsList, setSkillsList] = useState<string[]>(() => {
     const combined = [...ALL_SKILL_OPTIONS];
     (user.skills || []).forEach(s => {
@@ -76,31 +89,46 @@ export const SeekerProfileModal: React.FC<SeekerProfileModalProps> = ({
     }
   };
 
-  const setLocationByLandmark = (loc: typeof VELLORE_LOCATIONS[0]) => {
+  const setLocationByLandmark = (loc: TamilNaduLocation) => {
     setLatitude(loc.lat);
     setLongitude(loc.lng);
+    setLandmark(loc.name);
+    if (!address || address === user.city || address.includes('Tamil Nadu')) {
+      setAddress(`${loc.name}, ${loc.area || loc.district || loc.city || city}, Tamil Nadu`);
+    }
+    if (loc.city) setCity(loc.city);
   };
 
-  const fetchLiveGPS = () => {
-    if (!navigator.geolocation) {
-      alert('Geolocation is not supported by your browser');
-      return;
+  const handleCityChange = (newCity: string) => {
+    setCity(newCity);
+    const cityLocations = getLocationsByCity(newCity);
+    if (cityLocations.length > 0) {
+      setLatitude(cityLocations[0].lat);
+      setLongitude(cityLocations[0].lng);
+      setLandmark(cityLocations[0].name);
+      if (!address) {
+        setAddress(`${cityLocations[0].name}, ${newCity}, Tamil Nadu`);
+      }
     }
+  };
+
+  const fetchLiveGPS = async () => {
     setIsLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setLatitude(position.coords.latitude);
-        setLongitude(position.coords.longitude);
-        setIsLocating(false);
-      },
-      (err) => {
-        console.warn('GPS Error or simulated fallback:', err);
-        setLatitude(12.9692);
-        setLongitude(79.1559);
-        setIsLocating(false);
-      },
-      { timeout: 8000 }
-    );
+    try {
+      const res = await requestBrowserLocation();
+      setLatitude(res.latitude);
+      setLongitude(res.longitude);
+      if (res.city) setCity(res.city);
+      const closest = getClosestLandmark(res.latitude, res.longitude);
+      setLandmark(closest);
+      if (!address) {
+        setAddress(`${closest}, ${res.city || 'Tamil Nadu'}`);
+      }
+    } catch (err) {
+      console.warn('Live GPS error:', err);
+    } finally {
+      setIsLocating(false);
+    }
   };
 
   const handleSave = (e: React.FormEvent) => {
@@ -109,6 +137,10 @@ export const SeekerProfileModal: React.FC<SeekerProfileModalProps> = ({
       ...user,
       name,
       age: Number(age),
+      experience: Math.max(0, Number(experience) || 0),
+      city,
+      address: address.trim() || undefined,
+      landmark: landmark.trim() || undefined,
       phone,
       skills,
       free_time_slots: freeTimeSlots,
@@ -118,6 +150,8 @@ export const SeekerProfileModal: React.FC<SeekerProfileModalProps> = ({
     onSave(updated);
     onClose();
   };
+
+  const cityLandmarks = getLocationsByCity(city);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fadeIn">
@@ -154,8 +188,11 @@ export const SeekerProfileModal: React.FC<SeekerProfileModalProps> = ({
         {/* Modal Form Body */}
         <form onSubmit={handleSave} className="p-5 sm:p-6 overflow-y-auto space-y-5 text-sm">
           
+          {/* Phase 8: Dynamic Worker Reliability & Reputation */}
+          <ReliabilityBadge metrics={reliabilityService.getWorkerReliability(user.id)} />
+
           {/* Basic Info */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
             <div className="sm:col-span-2 space-y-1">
               <label className="text-xs font-semibold text-slate-700">{t.fullName}</label>
               <input
@@ -179,19 +216,47 @@ export const SeekerProfileModal: React.FC<SeekerProfileModalProps> = ({
                 className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-none focus:border-sky-500 focus:bg-white focus:ring-1 focus:ring-sky-500"
               />
             </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-700 flex items-center gap-1">
+                <Briefcase className="w-3 h-3 text-sky-500" />
+                <span>{t.yearsOfExperienceLabel}</span>
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="50"
+                required
+                value={experience}
+                onChange={(e) => setExperience(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-none focus:border-sky-500 focus:bg-white focus:ring-1 focus:ring-sky-500"
+              />
+            </div>
           </div>
 
-          {/* Phone */}
+          {/* Phone with +91 Prefix */}
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-slate-700">{t.phoneNumber}</label>
-            <input
-              type="text"
-              required
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-none focus:border-sky-500 focus:bg-white focus:ring-1 focus:ring-sky-500"
-              placeholder="+91 98401 23456"
-            />
+            <label className="text-xs font-semibold text-slate-700">{t.phoneNumber} *</label>
+            <div className="flex rounded-xl border border-slate-200 bg-slate-50 focus-within:border-sky-500 focus-within:bg-white focus-within:ring-1 focus-within:ring-sky-500 overflow-hidden shadow-xs">
+              <div className="flex items-center gap-1.5 px-3 bg-slate-100 border-r border-slate-200 text-slate-700 font-bold text-xs select-none">
+                <span>🇮🇳</span>
+                <span className="font-mono text-slate-700 font-bold">+91</span>
+              </div>
+              <input
+                type="tel"
+                inputMode="numeric"
+                pattern="[0-9]{10}"
+                maxLength={10}
+                required
+                value={phone.replace(/\D/g, '').slice(-10)}
+                onChange={(e) => {
+                  const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
+                  setPhone(digits ? `+91 ${digits.slice(0, 5)} ${digits.slice(5)}`.trim() : '');
+                }}
+                className="w-full px-3 py-2 bg-transparent text-xs sm:text-sm text-slate-900 focus:outline-none font-semibold placeholder:text-slate-400 placeholder:font-normal"
+                placeholder="98401 23456"
+              />
+            </div>
           </div>
 
           {/* Skills Selection */}
@@ -301,13 +366,30 @@ export const SeekerProfileModal: React.FC<SeekerProfileModalProps> = ({
               </button>
             </div>
 
+            {/* Tamil Nadu District / City Searchable Dropdown */}
+            <div className="space-y-1 pt-1">
+              <label className="text-xs font-semibold text-slate-700">{t.cityLabel}</label>
+              <SearchableSelect
+                value={city}
+                onChange={handleCityChange}
+                placeholder={t.selectCity || 'Search district / city in Tamil Nadu...'}
+                searchPlaceholder="Type district name..."
+                options={TAMIL_NADU_CITIES.map((c) => ({
+                  value: c.name,
+                  label: localizeContent(c.name, language),
+                  sublabel: c.district !== c.name ? `${localizeContent(c.district, language)} District` : 'District Hub',
+                  badge: c.isPopular ? 'Popular' : undefined
+                }))}
+              />
+            </div>
+
             <div className="text-xs text-slate-500 pt-1 font-medium">
               {t.selectLandmark}:
             </div>
 
-            {/* Vellore Landmark Quick Presets */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-32 overflow-y-auto">
-              {VELLORE_LOCATIONS.map((loc) => {
+            {/* Tamil Nadu Landmark Quick Presets */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-36 overflow-y-auto">
+              {cityLandmarks.map((loc) => {
                 const isSelected = Math.abs(loc.lat - latitude) < 0.001 && Math.abs(loc.lng - longitude) < 0.001;
                 return (
                   <button
@@ -321,10 +403,25 @@ export const SeekerProfileModal: React.FC<SeekerProfileModalProps> = ({
                     }`}
                   >
                     <div className="truncate font-semibold">{localizeContent(loc.name, language)}</div>
-                    <div className="text-[10px] text-slate-400 truncate">{localizeContent(loc.area, language)}</div>
+                    <div className="text-[10px] text-slate-400 truncate">{localizeContent(loc.area || loc.district, language)}</div>
                   </button>
                 );
               })}
+            </div>
+
+            {/* Exact Home Address / Street */}
+            <div className="space-y-1 pt-1 border-t border-slate-200">
+              <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
+                <span>Exact Home / Starting Address</span>
+                <span className="text-[10px] text-slate-400 font-normal">Used as starting point for directions</span>
+              </label>
+              <input
+                type="text"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="e.g. 112, Pillaiyar Kovil St, Sathuvachari, Vellore"
+                className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-all placeholder:text-slate-400"
+              />
             </div>
           </div>
 

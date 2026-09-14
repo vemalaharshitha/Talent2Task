@@ -1,5 +1,6 @@
-import type { Language } from '../types';
-import { autoTranslateString } from './autoTranslate';
+import type { Language, Job } from '../types';
+import { autoTranslateString, detectLanguageFromScript, hasIndicCharacters, prefetchDynamicTranslation } from './autoTranslate.ts';
+import { getInstantOrPrefetch } from '../services/translationService.ts';
 
 export interface TranslationDictionary {
   // App header & Global
@@ -64,7 +65,7 @@ export interface TranslationDictionary {
   tabSignIn: string;
   tabCreateAccount: string;
   newUserRegistration: string;
-  joinSkill2Work: string;
+  joinTalent2Task: string;
   createAccountSubtitle: string;
   fullNameLabel: string;
   companyNameLabel: string;
@@ -73,8 +74,13 @@ export interface TranslationDictionary {
   mobilePhoneLabel: string;
   mobilePhonePlaceholder: string;
   ageLabel: string;
+  yearsOfExperienceLabel: string;
+  cityLabel: string;
   selectVelloreLocation: string;
+  selectCity: string;
   useGpsBtn: string;
+  gpsPromptTitle: string;
+  gpsPromptSubtitle: string;
   skillsOffered: string;
   availableTimeSlots: string;
   createSeekerAccountBtn: string;
@@ -84,6 +90,9 @@ export interface TranslationDictionary {
   orSignInRegistered: string;
   sqliteSavedFeature: string;
   radar3kmFeature: string;
+  exploreGigsTab: string;
+  manageGigsTab: string;
+  postGigTab: string;
 
   // Seeker Tab
   radarHeading: string;
@@ -98,6 +107,23 @@ export interface TranslationDictionary {
   completedBadge: string;
   jobDetailsTitle: string;
   directionsBtn: string;
+  directionsModalTitle: string;
+  directionsModalSubtitle: string;
+  yourLocationLabel: string;
+  gigLocationLabel: string;
+  startNavigationBtn: string;
+  openGoogleMapsBtn: string;
+  openAppleMapsBtn: string;
+  onMyWayBtn: string;
+  onMyWayAlertSent: string;
+  travelModeBike: string;
+  travelModeCar: string;
+  travelModeAuto: string;
+  travelModeWalk: string;
+  liveGpsAccurate: string;
+  estimatedArrival: string;
+  turnByTurnGuide: string;
+  readyToGoBanner: string;
   callRecruiterBtn: string;
   whatsappRecruiterBtn: string;
   myGigsTab: string;
@@ -135,6 +161,27 @@ export interface TranslationDictionary {
   selectLandmark: string;
   saveProfileBtn: string;
 
+  // Recruiter Profile Location Details
+  doorNoLabel: string;
+  doorNoPlaceholder: string;
+  streetNameLabel: string;
+  streetNamePlaceholder: string;
+  cityOrDistrictLabel: string;
+  landmarkFieldLabel: string;
+  landmarkFieldPlaceholder: string;
+  workplaceAddressLabel: string;
+  workplaceAddressHint: string;
+  recruiterLocationTitle: string;
+  recruiterLocationSubtitle: string;
+
+  // Phase 35 — Payment Feature UI Terminology
+  payNowBtn: string;
+  paymentSuccessful: string;
+  paymentReceived: string;
+  processingPayment: string;
+  paymentCompleted: string;
+  paidStatus: string;
+
   // Skill Gap & AI Recommendations
   skillGapTitle: string;
   skillGapBadge: string;
@@ -143,6 +190,25 @@ export interface TranslationDictionary {
   neededInGigs: string;
   allStarTitle: string;
   allStarDesc: string;
+
+  // Phase 4 — AI Skill Understanding & Skill-Gap Engine
+  skillGapCurrentSkills: string;
+  skillGapRelatedSkills: string;
+  skillGapMissingSkills: string;
+  skillGapUpskillingPath: string;
+  skillGapCoverage: string;
+  skillGapUnlockedGigs: string;
+  skillGapPotentialBoost: string;
+  skillGapWhyRecommended: string;
+  skillGapStep: string;
+  skillGapAffinity: string;
+  skillGapDemand: string;
+  skillGapBridge: string;
+  skillGapHighDemandBadge: string;
+  skillGapHighPayBadge: string;
+  skillGapExploreSteps: string;
+  skillGapAllStages: string;
+  skillGapAddSkillBtn: string;
 
   // Recruiter Portal
   recruiterHeading: string;
@@ -209,6 +275,72 @@ export interface TranslationDictionary {
   matchedSkillsLabel: string;
   missingSkillsLabel: string;
 
+  // Hybrid AI Matching & Explainability
+  whyRecommended: string;
+  hybridMatchBreakdown: string;
+  skillSimilarityLabel: string;
+  distanceFactorLabel: string;
+  availabilityFactorLabel: string;
+  experienceFactorLabel: string;
+  localDemandFactorLabel: string;
+  reliabilityFactorLabel: string;
+
+  // Phase 3 — NLP Requirement Understanding
+  aiRequirementAssistant: string;
+  aiFastDraftTitle: string;
+  aiInputPlaceholder: string;
+  extractWithAiBtn: string;
+  analyzingWithAi: string;
+  extractedDetailsTitle: string;
+  extractedDetailsSubtitle: string;
+  applyExtractedBtn: string;
+  dismissExtractedBtn: string;
+  detectedIntent: string;
+  hiringWorkerIntent: string;
+  detectedExperience: string;
+  detectedShift: string;
+  detectedLocation: string;
+  detectedPayout: string;
+  missingInformationAlert: string;
+  confirmBeforePostNotice: string;
+  aiSearchParsed: string;
+
+  // Phase 6 — Voice & Multilingual AI
+  voiceSearchBtn: string;
+  voiceFastDraftBtn: string;
+  voiceListening: string;
+  voiceListeningPrompt: string;
+  voicePermissionDenied: string;
+  voicePermissionHelp: string;
+  voiceUnsupported: string;
+  voiceUnsupportedHelp: string;
+  voiceSamplePhrases: string;
+  voiceTrySample: string;
+  voiceProcessing: string;
+  aiMultilingualActive: string;
+  aiLanguageDetected: string;
+
+  // Phase 7 — Trust & Safety
+  trustSafetyTitle: string;
+  trustPotentialRisk: string;
+  trustVerifiedRecruiter: string;
+  trustStandardVerification: string;
+  trustVerifiedListing: string;
+  trustNewRecruiterNote: string;
+  trustReportJobBtn: string;
+  trustReportModalTitle: string;
+  trustReportSuccessTitle: string;
+  trustNoAutoBanNotice: string;
+
+  // Phase 8 — Reliability & Continuous Feedback
+  workerReliabilityTitle: string;
+  reliabilityScoreLabel: string;
+  reliabilityTierLabel: string;
+  completionRateLabel: string;
+  continuousFeedbackLabel: string;
+  verifiedReviewsLabel: string;
+  newWorkerBaselineNote: string;
+
   // Community Demand Modal
   demandModalTitle: string;
   demandModalSubtitle: string;
@@ -222,6 +354,23 @@ export interface TranslationDictionary {
   openGigsSuffix: string;
   topAreaLabel: string;
   growthLabel: string;
+  demandActualTitle: string;
+  demandPredictedTitle: string;
+  demandLevelHigh: string;
+  demandLevelMedium: string;
+  demandLevelLow: string;
+  demandTrendRising: string;
+  demandTrendStable: string;
+  demandTrendSoftening: string;
+  demandInsufficientData: string;
+  demandAttributionTitle: string;
+  demandSelectRegion: string;
+  demandActiveGigsLabel: string;
+  demandCompletedGigsLabel: string;
+  demandModelArchitecture: string;
+  demandWhyThisPrediction: string;
+  demandFilterGigsBtn: string;
+  demandAllTamilNadu: string;
 
   // Feedback Modal
   feedbackTitle: string;
@@ -254,18 +403,28 @@ export interface TranslationDictionary {
   toastProfileUpdated: string;
   toastSkillAdded: string;
   toastReviewSaved: string;
+  nextStepBtn: string;
+  backStepBtn: string;
+  stepAccountInfo: string;
+  stepLocationExperience: string;
+  stepLocationDetails: string;
+  selectRoleLabel: string;
+  phoneExact10DigitsError: string;
+  passwordRegexError: string;
+  passwordRegexHint: string;
+  [key: string]: any;
 }
 
 export const TRANSLATIONS: Record<Language, TranslationDictionary> = {
   en: {
     // App header & Global
-    appName: 'Skill2Work',
-    regionTag: 'Vellore Region (வேலூர்)',
-    tagline: 'Right Skills. Right Job. Real Impact. • Vellore',
+    appName: 'Talent2Task',
+    regionTag: 'Tamil Nadu (தமிழ்நாடு)',
+    tagline: 'Right Skills. Right Job. Real Impact. • Tamil Nadu',
     offlineStatus: 'Offline-First SQLite Mode',
     sqlTerminal: 'SQLite Inspector',
     roleSeeker: 'Job Seeker',
-    roleRecruiter: 'Recruiter',
+    roleRecruiter: 'Job Recruiter',
     switchRole: 'Switch Role',
     offlineAlert: 'You are offline. Your saved gigs and profiles are available locally; maps and external links will reconnect when internet returns.',
     marketDemand: 'Market Demand',
@@ -296,57 +455,65 @@ export const TRANSLATIONS: Record<Language, TranslationDictionary> = {
     // Login Page
     loginWelcome: 'WELCOME BACK',
     loginHeading: 'Sign in to continue',
-    loginSubtitle: 'Choose your account type and access your workspace.',
+    loginSubtitle: 'Access your workspace across Tamil Nadu.',
     loginSeekerDesc: 'Find local gigs',
     loginRecruiterDesc: 'Post a gig',
-    loginEmailLabel: 'Email or mobile number',
-    loginEmailPlaceholder: 'you@example.com',
+    loginEmailLabel: 'Mobile Phone Number',
+    loginEmailPlaceholder: '98765 43210',
     loginPasswordLabel: 'Password',
     loginPasswordPlaceholder: 'Enter your password',
     loginRememberMe: 'Remember me',
     loginForgotPassword: 'Forgot password?',
-    loginSignInSeeker: 'Sign in as Job Seeker',
-    loginSignInRecruiter: 'Sign in as Recruiter',
-    loginNewPrompt: 'New to Skill2Work?',
+    loginSignInSeeker: 'Sign In',
+    loginSignInRecruiter: 'Sign In',
+    loginNewPrompt: 'New to Talent2Task?',
     loginCreateAccount: 'Create an account',
     loginHeroTitle1: 'Right skills.',
     loginHeroTitle2: 'Right job.',
     loginHeroTitleHighlight: 'Real impact.',
-    loginHeroDesc: 'Discover trusted local gigs or find the skilled people your business needs, all in one place.',
-    loginStatRadar: '3 km',
-    loginStatRadarSub: 'local radar',
+    loginHeroDesc: 'Discover trusted gigs or find skilled workers across Tamil Nadu, all in one unified platform.',
+    loginStatRadar: 'Live GPS',
+    loginStatRadarSub: 'Tamil Nadu radar',
     loginStatOpp: '24/7',
     loginStatOppSub: 'opportunities',
     tabSignIn: 'Sign In',
     tabCreateAccount: 'Create Account',
     newUserRegistration: 'New User Registration',
-    joinSkill2Work: 'Join Skill2Work Vellore',
-    createAccountSubtitle: 'Create your account to get matched with 3km hyper-local gigs or post jobs in Vellore.',
+    joinTalent2Task: 'Join Talent2Task Tamil Nadu',
+    createAccountSubtitle: 'Create your account to match with hyper-local gigs or post jobs across Tamil Nadu.',
     fullNameLabel: 'Full Name',
     companyNameLabel: 'Company / Business Name',
     fullNamePlaceholder: 'e.g. Karthik Raja',
-    companyNamePlaceholder: 'e.g. Vellore Fresh Mart',
+    companyNamePlaceholder: 'e.g. Tamil Nadu Fresh Mart',
     mobilePhoneLabel: 'Mobile Phone Number',
-    mobilePhonePlaceholder: '+91 98401 23456',
+    mobilePhonePlaceholder: '98765 43210',
     ageLabel: 'Age',
-    selectVelloreLocation: 'Select Primary Vellore Location / Area',
-    useGpsBtn: 'Use GPS',
+    yearsOfExperienceLabel: 'Years of Experience',
+    cityLabel: 'City / Preferred Region',
+    selectVelloreLocation: 'Select City / Preferred Region',
+    selectCity: 'Select City in Tamil Nadu',
+    useGpsBtn: 'Live GPS',
+    gpsPromptTitle: 'Enable Live GPS for Accurate Nearby Jobs',
+    gpsPromptSubtitle: 'Allow location access to match with gigs nearest to you across Tamil Nadu',
     skillsOffered: 'Skills & Services Offered',
     availableTimeSlots: 'Available Time Slots',
-    createSeekerAccountBtn: 'Create Seeker Account & Save to DB',
-    createRecruiterAccountBtn: 'Create Recruiter Account & Save to DB',
+    createSeekerAccountBtn: 'Create Account',
+    createRecruiterAccountBtn: 'Create Account',
     alreadyRegisteredPrompt: 'Already registered?',
     signInNowBtn: 'Sign In Now',
-    orSignInRegistered: 'Or Sign In as a Registered SQLite User',
-    sqliteSavedFeature: 'Saved instantly in SQLite WASM Database',
-    radar3kmFeature: 'Hyper-local 3km Radar gig matching',
+    orSignInRegistered: '',
+    sqliteSavedFeature: 'Saved locally in SQLite WASM Database',
+    radar3kmFeature: 'Live GPS & City Radar gig matching',
+    exploreGigsTab: 'Explore Gigs',
+    manageGigsTab: 'Post & Manage',
+    postGigTab: 'Post a Gig',
 
     // Seeker Tab
-    radarHeading: 'Live Gig Radar (Vellore)',
+    radarHeading: 'Live Gig Radar (Tamil Nadu)',
     radarSubtitle: 'Find informal gigs & part-time shifts nearest to you',
     withinRadius: 'within',
     radiusSlider: 'Radius Filter',
-    allVellore: 'All Vellore',
+    allVellore: 'All Tamil Nadu',
     matchScore: 'Match',
     claimJobBtn: 'Accept / Claim Gig',
     claimedBadge: 'Claimed by You',
@@ -354,6 +521,23 @@ export const TRANSLATIONS: Record<Language, TranslationDictionary> = {
     completedBadge: 'Completed',
     jobDetailsTitle: 'Gig Details & Contact',
     directionsBtn: 'Get Directions',
+    directionsModalTitle: 'Route & Directions to Gig',
+    directionsModalSubtitle: 'Accurate GPS Navigation & Live Route Guide',
+    yourLocationLabel: 'Your Starting Location',
+    gigLocationLabel: 'Recruiter Work Location',
+    startNavigationBtn: 'Start Google Maps Navigation',
+    openGoogleMapsBtn: 'Google Maps GPS',
+    openAppleMapsBtn: 'Apple Maps',
+    onMyWayBtn: "I'm On My Way",
+    onMyWayAlertSent: 'Recruiter notified with your live ETA!',
+    travelModeBike: 'Bike / Two-Wheeler',
+    travelModeCar: 'Car / Taxi',
+    travelModeAuto: 'Auto / Transit',
+    travelModeWalk: 'Walking',
+    liveGpsAccurate: 'Accurate GPS Geolocation Active',
+    estimatedArrival: 'Estimated Travel Duration',
+    turnByTurnGuide: 'Navigation Guidance',
+    readyToGoBanner: 'Ready to go? Get Turn-by-Turn GPS Directions to Gig',
     callRecruiterBtn: 'Call Recruiter',
     whatsappRecruiterBtn: 'WhatsApp',
     myGigsTab: 'My Claimed Gigs',
@@ -372,7 +556,7 @@ export const TRANSLATIONS: Record<Language, TranslationDictionary> = {
     claiming: 'Claiming...',
     overall: 'Overall',
     noClaimedGigsTitle: 'No Claimed Gigs Yet',
-    noClaimedGigsDesc: 'Explore the live 3km radar to accept quick hourly gigs in Katpadi, CMC, and Vellore.',
+    noClaimedGigsDesc: 'Explore the live radar to accept quick hourly gigs across Tamil Nadu.',
     myClaimedSubtitle: 'Track your accepted gigs and connect with local recruiters',
 
     // Profile Modal
@@ -385,24 +569,64 @@ export const TRANSLATIONS: Record<Language, TranslationDictionary> = {
     skillsSelected: 'selected',
     addCustomSkillPlaceholder: 'Add other skill (e.g. Electrician, Tutoring)...',
     myAvailability: 'Free-Time Availability',
-    myLocation: 'Current Vellore Location / GPS',
+    myLocation: 'Current Location / GPS',
     useCurrentGps: 'Fetch Live GPS',
     locating: 'Locating...',
-    selectLandmark: 'Or Pick Vellore Landmark',
+    selectLandmark: 'Or Pick Tamil Nadu Landmark',
     saveProfileBtn: 'Save Profile & Update Radar',
+
+    // Recruiter Profile Location Details
+    doorNoLabel: 'Door / Flat / Shop No.',
+    doorNoPlaceholder: 'e.g. Door No. 14/B, 2nd Floor, Apex Complex',
+    streetNameLabel: 'Street Name / Road / Area',
+    streetNamePlaceholder: 'e.g. Anna Salai, Gandhi Street, Mount Road',
+    cityOrDistrictLabel: 'City or District',
+    landmarkFieldLabel: 'Landmark (Closest Hub)',
+    landmarkFieldPlaceholder: 'e.g. Near Bus Terminus / Opp. Bank',
+    workplaceAddressLabel: 'Complete Workplace Address (For Candidate Navigation)',
+    workplaceAddressHint: 'Candidates who claim your gigs will receive accurate turn-by-turn navigation directly to this workplace address.',
+    recruiterLocationTitle: 'Workplace & Business Location',
+    recruiterLocationSubtitle: 'Manage door no, street name, landmark, and district for accurate navigation',
+
+    // Phase 35 — Payment Feature UI Terminology
+    payNowBtn: 'Pay Now',
+    paymentSuccessful: 'Payment Successful',
+    paymentReceived: 'Payment Received',
+    processingPayment: 'Processing Payment...',
+    paymentCompleted: 'Payment Completed',
+    paidStatus: 'Paid',
 
     // Skill Gap & AI Recommendations
     skillGapTitle: 'AI Skill Gap & Career Recommendations',
     skillGapBadge: '+35% Match Score Boost',
-    skillGapDesc: 'Add these high-demand skills to your profile to instantly unlock 90%+ match scores on top Vellore gigs.',
+    skillGapDesc: 'Add these high-demand skills to your profile to instantly unlock 90%+ match scores on top Tamil Nadu gigs.',
     addToMySkills: 'Add to My Skills',
     neededInGigs: 'Needed in',
     allStarTitle: 'All-Star Skill Profile!',
-    allStarDesc: 'Your profile covers 100% of the active skills requested across nearby Vellore gigs.',
+    allStarDesc: 'Your profile covers 100% of the active skills requested across nearby Tamil Nadu gigs.',
+
+    // Phase 4 — AI Skill Understanding & Skill-Gap Engine
+    skillGapCurrentSkills: 'Current Skills',
+    skillGapRelatedSkills: 'Related Skills',
+    skillGapMissingSkills: 'Missing High-Demand Skills',
+    skillGapUpskillingPath: 'Recommended Upskilling Path',
+    skillGapCoverage: 'Market Skill Coverage',
+    skillGapUnlockedGigs: 'Gigs Unlocked',
+    skillGapPotentialBoost: 'Potential Pay Boost',
+    skillGapWhyRecommended: 'Why this is recommended',
+    skillGapStep: 'Step',
+    skillGapAffinity: 'AI Affinity',
+    skillGapDemand: 'Market Demand',
+    skillGapBridge: 'Bridge Skill',
+    skillGapHighDemandBadge: 'High Demand',
+    skillGapHighPayBadge: 'Top Earning',
+    skillGapExploreSteps: 'Upskilling Path',
+    skillGapAllStages: 'Full Skill Analysis',
+    skillGapAddSkillBtn: 'Add to My Skills',
 
     // Recruiter Portal
     recruiterHeading: 'Recruiter Management Hub',
-    recruiterSubtitle: 'Post quick part-time gigs across Katpadi, CMC, VIT & Vellore',
+    recruiterSubtitle: 'Post quick part-time gigs across Tamil Nadu cities and districts',
     activeRecruiter: 'Active Recruiter',
     postNewGigBtn: 'Post a New Gig',
     postedGigsCount: 'Active Posted Gigs',
@@ -424,8 +648,8 @@ export const TRANSLATIONS: Record<Language, TranslationDictionary> = {
     noRecruiterGigs: 'You have not posted any gigs yet. Click "Post a New Gig" to get started!',
 
     // Post Gig Form
-    postModalTitle: 'Post a Local Gig (Vellore)',
-    postModalSubtitle: 'Post an informal gig with instant 3km radar discovery in Vellore',
+    postModalTitle: 'Post a Local Gig (Tamil Nadu)',
+    postModalSubtitle: 'Post an informal gig with instant radar discovery across Tamil Nadu',
     jobTitleLabel: 'Job Title',
     jobTitlePlaceholder: 'e.g., Delivery Assistant, Store Billing Hand, Event Setup',
     categoryLabel: 'Category',
@@ -438,9 +662,9 @@ export const TRANSLATIONS: Record<Language, TranslationDictionary> = {
     perShift: 'per shift',
     perDay: 'per day',
     requiredSkillsLabel: 'Required Skills (Select tags)',
-    landmarkAreaLabel: 'Landmark / Area in Vellore',
-    clickMapInstruction: 'Click on the map or select a Vellore landmark below to set exact coordinates',
-    publishJobBtn: 'Publish Gig to SQLite',
+    landmarkAreaLabel: 'Landmark / Area / City in Tamil Nadu',
+    clickMapInstruction: 'Click on the map or select a Tamil Nadu landmark below to set exact coordinates',
+    publishJobBtn: 'Publish Gig',
 
     // Categories
     catDelivery: 'Delivery & Transport',
@@ -451,7 +675,7 @@ export const TRANSLATIONS: Record<Language, TranslationDictionary> = {
     catElectrical: 'Technical & Maintenance',
 
     // Filter & Search
-    searchPlaceholder: 'Search jobs, skills, or Vellore landmarks...',
+    searchPlaceholder: 'Search jobs, skills, or Tamil Nadu locations...',
     categoryFilter: 'Category',
     allCategories: 'All Categories',
     minPayFilter: 'Min Pay (₹)',
@@ -465,19 +689,100 @@ export const TRANSLATIONS: Record<Language, TranslationDictionary> = {
     matchedSkillsLabel: 'Matched Skills',
     missingSkillsLabel: 'Missing Skills',
 
+    // Hybrid AI Matching & Explainability
+    whyRecommended: 'Why this match?',
+    hybridMatchBreakdown: 'Hybrid AI Ranking Breakdown',
+    skillSimilarityLabel: 'Skill Similarity',
+    distanceFactorLabel: 'Distance',
+    availabilityFactorLabel: 'Availability',
+    experienceFactorLabel: 'Experience',
+    localDemandFactorLabel: 'Local Demand',
+    reliabilityFactorLabel: 'Reliability',
+
+    // Phase 3 — NLP Requirement Understanding
+    aiRequirementAssistant: 'AI Requirement Assistant',
+    aiFastDraftTitle: 'Fast-Draft with Natural Language',
+    aiInputPlaceholder: 'e.g., I need an experienced AC technician near Madurai tomorrow evening',
+    extractWithAiBtn: 'Analyze with AI',
+    analyzingWithAi: 'Extracting...',
+    extractedDetailsTitle: 'AI Extracted Details — Review & Edit',
+    extractedDetailsSubtitle: 'Verify and refine any detected fields before applying to your gig posting',
+    applyExtractedBtn: 'Apply Extracted Details',
+    dismissExtractedBtn: 'Clear',
+    detectedIntent: 'Intent',
+    hiringWorkerIntent: 'Hiring Worker',
+    detectedExperience: 'Experience',
+    detectedShift: 'Timing / Shift',
+    detectedLocation: 'Location',
+    detectedPayout: 'Pay Rate',
+    missingInformationAlert: 'Needs Attention',
+    confirmBeforePostNotice: 'AI information is never posted without your confirmation. Please review the details below.',
+    aiSearchParsed: 'AI Natural Language Search',
+    // Phase 6 — Voice & Multilingual AI
+    voiceSearchBtn: 'Voice Search',
+    voiceFastDraftBtn: 'Speak Requirement',
+    voiceListening: 'Listening... Speak now',
+    voiceListeningPrompt: 'Speak or type in Tamil, Telugu, Hindi, or English',
+    voicePermissionDenied: 'Microphone Access Blocked',
+    voicePermissionHelp: 'Please enable microphone access in browser settings or try sample voice presets.',
+    voiceUnsupported: 'Speech Recognition Unsupported',
+    voiceUnsupportedHelp: 'Your browser does not support Web Speech API. Please type or use sample voice.',
+    voiceSamplePhrases: 'Voice AI Sample Inputs',
+    voiceTrySample: 'Try Sample Voice',
+    voiceProcessing: 'Processing Voice AI...',
+    aiMultilingualActive: 'AI Multilingual & Voice Active',
+    aiLanguageDetected: 'Language Detected',
+    // Phase 7 — Trust & Safety
+    trustSafetyTitle: 'Trust & Safety Assessment',
+    trustPotentialRisk: 'Potential Risk Detected',
+    trustVerifiedRecruiter: 'Verified Recruiter',
+    trustStandardVerification: 'Standard Verification',
+    trustVerifiedListing: 'Verified Listing',
+    trustNewRecruiterNote: 'New recruiter account — standard security checks passed. Ratings build over time with completed gigs.',
+    trustReportJobBtn: 'Report Job',
+    trustReportModalTitle: 'Report Job Posting',
+    trustReportSuccessTitle: 'Report Logged for Review',
+    trustNoAutoBanNotice: 'To prevent abuse, jobs and recruiters are never automatically banned solely based on reports or AI algorithms.',
+
+    // Phase 8 — Reliability & Continuous Feedback
+    workerReliabilityTitle: 'Worker Reliability & Reputation',
+    reliabilityScoreLabel: 'Reliability Score',
+    reliabilityTierLabel: 'Reputation Tier',
+    completionRateLabel: 'Task Completion Rate',
+    continuousFeedbackLabel: 'Continuous Feedback Cycle',
+    verifiedReviewsLabel: 'Verified Reviews',
+    newWorkerBaselineNote: 'New worker baseline applied — building verified track record on Talent2Task.',
+
     // Community Demand Modal
     demandModalTitle: 'Community Demand & Skill Trends',
     demandModalSubtitle: 'Live demand aggregation across Katpadi, CMC, VIT, and Sathuvachari',
-    demandRegionBadge: 'Vellore District Real-Time AI Radar',
+    demandRegionBadge: 'Tamil Nadu Real-Time AI Radar',
     topInDemandRole: 'Top In-Demand Role',
     avgHourlyPayout: 'Avg. Hourly Payout',
     peakHiringWindows: 'Peak Hiring Windows',
     hourlyPaySub: 'Instant same-day completion',
     peakHiringSub: 'Part-time flexible shifts',
-    skillDemandRanking: 'Vellore In-Demand Skills & Pay Rate',
+    skillDemandRanking: 'Tamil Nadu In-Demand Skills & Pay Rate',
     openGigsSuffix: 'open gigs',
     topAreaLabel: 'Top Area:',
     growthLabel: 'Growth:',
+    demandActualTitle: 'Current Local Demand',
+    demandPredictedTitle: 'Predicted Demand',
+    demandLevelHigh: 'High',
+    demandLevelMedium: 'Medium',
+    demandLevelLow: 'Low',
+    demandTrendRising: 'Rising',
+    demandTrendStable: 'Stable',
+    demandTrendSoftening: 'Softening',
+    demandInsufficientData: 'Insufficient historical data',
+    demandAttributionTitle: 'Data Source & Activity Attribution',
+    demandSelectRegion: 'Select District / Region',
+    demandActiveGigsLabel: 'Active Gigs',
+    demandCompletedGigsLabel: 'Completed / Claimed',
+    demandModelArchitecture: 'Statistical Predictive Engine',
+    demandWhyThisPrediction: 'Data & Prediction Attribution',
+    demandFilterGigsBtn: 'Explore Jobs',
+    demandAllTamilNadu: 'All Tamil Nadu (Statewide)',
 
     // Feedback Modal
     feedbackTitle: 'Rate & Review Experience',
@@ -501,26 +806,154 @@ export const TRANSLATIONS: Record<Language, TranslationDictionary> = {
     noResults: 'Query executed successfully with no rows returned.',
 
     // Footer & Toasts
-    footerTagline: 'Right Skills. Right Job. Real Impact.',
-    footerEngineDesc: 'Hyper-Local Gig Discovery Engine — Vellore District, Tamil Nadu',
+    footerTagline: 'Right Talent. Right Task. Real Impact.',
+    footerEngineDesc: 'Hyper-Local Gig Discovery Engine — Tamil Nadu',
     toastClaimSuccess: '🎉 Gig accepted! Contact info unlocked for recruiter.',
     toastStatusUpdated: 'Status updated to',
-    toastJobDeleted: 'Gig removed from SQLite.',
-    toastJobPosted: '🚀 New Vellore gig posted and live on 3km radar!',
-    toastProfileUpdated: '✅ Profile & GPS updated in SQLite WASM.',
+    toastJobDeleted: 'Gig removed.',
+    toastJobPosted: '🚀 New gig posted and live on radar across Tamil Nadu!',
+    toastProfileUpdated: '✅ Profile & GPS updated successfully.',
     toastSkillAdded: 'added! AI match scores recalculated.',
-    toastReviewSaved: '⭐ Rating & feedback saved! Community trust updated.'
+    toastReviewSaved: '⭐ Rating & feedback saved! Community trust updated.',
+    nextStepBtn: 'Next',
+    backStepBtn: 'Back',
+    stepAccountInfo: '1. Account Info',
+    stepLocationExperience: '2. Experience & Location',
+    stepLocationDetails: '2. Location Details',
+    selectRoleLabel: 'Select Account Role',
+    phoneExact10DigitsError: 'Please enter exactly 10-digit mobile number.',
+    passwordRegexError: 'Password must be 8-12 characters long and include at least one number and one special character.',
+    passwordRegexHint: '8-12 characters, at least 1 number & 1 special character'
   },
 
   ta: {
+    'Turmeric Root Sun-Drying & Bagging Hand': 'மஞ்சள் கிழங்கு உலர்த்துதல் மற்றும் மூட்டை கட்டுதல்',
+    'Parboiled Rice Huller Mill Operator': 'புழுங்கல் அரிசி ஆலை ஹல்லர் ஆபரேட்டர்',
+    'Sugar Mill Sugarcane Crusher Feeder': 'கள்ளக்குறிச்சி சர்க்கரை ஆலை கரும்பு அரவை ஆபரேட்டர்',
+    'Shallot (Small Onion) Grading Sorter': 'சின்ன வெங்காயம் தரம் பிரித்து பேக்கிங் செய்பவர்',
+    'Gypsum Mineral Processing Helper': 'ஜிப்சம் கனிம செயலாக்க உதவியாளர்',
+    'Hybrid Maize Seed Sorting Specialist': 'பெரம்பலூர் மக்காச்சோள விதை தரம் பிரிக்கும் நிபுணர்',
+    'Groundnut Decorticator & Oil Extraction Operator': 'மணப்பாறை நிலக்கடலை எண்ணெய் ஆலை எக்ஸ்பெல்லர்',
+    'Synthetic Gemstone Faceting & Lapidary Polisher': 'செயற்கை வைர மற்றும் ரத்தின பாலிஷிங் கலைஞர்',
+    'Irrigation Canal Sluice Gate Maintenance Hand': 'பாசன கால்வாய் மதகு பராமரிப்பு உதவியாளர்',
+    'Tiruvarur Chariot Silk Border Weaving Artisan': 'திருவாரூர் ஆழித்தேர் பட்டு பார்டர் நெசவு கலைஞர்',
+    'Certified Paddy Seed Moisture & Purity Sorter': 'சான்றளிக்கப்பட்ட நெல் விதை ஈரப்பதம் மற்றும் தூய்மை பரிசோதகர்',
+    'Traditional Cotton Dhoti Handloom Weaver': 'பாரம்பரிய காட்டன் வேட்டி கைத்தறி நெசவாளர்',
+    'Coastal Shrimp Hatchery Water Quality Tech': 'கடலோர இறால் குஞ்சு பொரிப்பக நீர் தர தொழில்நுட்ப வல்லுநர்',
+    'Raw Cashew Decortication & Roasting Sorter': 'முந்திரி வறுத்தல் மற்றும் உடைக்கும் தரம் பிரிப்பவர்',
+    'Limestone Quarry Mining Equipment Hand': 'சுண்ணாம்புக்கல் சுரங்க உபகரண உதவியாளர்',
+    'Cement Rotary Kiln Monitoring Operator': 'அரியலூர் சிமெண்ட் சுழல் உலை கண்காணிப்பு ஆபரேட்டர்',
+    'Automotive Sub-Assembly Line Fitter': 'மறைமலைநகர் கார் அசெம்பிளி லைன் பிட்டர்',
+    'IT Server Room Power & HVAC Tech': 'மகிந்திரா வேர்ல்ட் சிட்டி சர்வர் ரூம் பவர் & ஏசி டெக்னீஷியன்',
+    'Defense Vehicle Spare Quality Checker': 'ஆவடி ராணுவ வாகன உதிரிபாக தர பரிசோதகர்',
+    'Heavy Metal Forging Drop-Hammer Operator': 'கும்மிடிப்பூண்டி கனரக மெட்டல் போForging ஆபரேட்டர்',
+    'Tannery Drum Processing Operator': 'தோல் பதனிடும் மர டிரிரம் ஆபரேட்டர்',
+    'Shoe Upper Zig-Zag Sewing Tailor': 'ஆம்பூர் தோல் காலணி தையல் மாஸ்டர்',
+    'Railway Freight Transshipment Loader': 'ஜோலார்பேட்டை ரயில்வே சரக்கு டிரான்ஸ்ஷிப்மென்ட் உதவியாளர்',
+    'Industrial Boiler Water Chemistry Tech': 'தொழில்துறை பாய்லர் நீர் வேதியியல் தொழில்நுட்ப வல்லுநர்',
+    'Leather Shoe Upper Clicking & Skiving': 'தோல் காலணி மேல் பகுதி கட்டிங் & ஸ்கைவிங்',
+    'High Voltage Switchyard Electrician': 'உயர் மின்னழுத்த சுவிட்ச்யார்டு எலக்ட்ரீசியன்',
+    'Thermal Power Plant Maintenance Tech': 'அனல் மின் நிலைய பராமரிப்பு தொழில்நுட்ப வல்லுநர்',
+    'Lignite Bucket Wheel Excavator Operator': 'நிலக்கரி பக்கெட் வீல் அகழ்வாராய்ச்சி ஆபரேட்டர்',
+    'Plum & Pear Orchard Harvest Hand': 'பிளம்ஸ் மற்றும் பேரிக்காய் பறிக்கும் உதவியாளர்',
+    'Homemade Chocolate Tempering Artisan': 'கொடைக்கானல் சாக்லேட் தயாரிப்பாளர்',
+    'Timber Sawmill Machine Operator Helper': 'மரம் அறுக்கும் ஆலை இயந்திர உதவியாளர்',
+    'Coir Pith Block Press Machine Operator': 'தேங்காய் நார் கழிவு பிரிக் கட்டை பிரஸ் ஆபரேட்டர்',
+    'Tender Coconut Wholesale Sorting Specialist': 'பொள்ளாச்சி இளநீர் மட்டை உறித்தல் மற்றும் தரம் பிரித்தல்',
+    'Temple Border Silk Dhoti Handloom Weaver': 'கோவில் பட்டு வேட்டி கைத்தறி நெசவாளர்',
+    'Kumbakonam Degree Coffee Roaster & Barista': 'கும்பகோணம் டிகிரி காபி வறுக்கும் மாஸ்டர்',
+    'Brass Temple Lamp (Kuthuvilakku) Artisan': 'பித்தளை குத்துவிளக்கு மற்றும் மணி கைவினைஞர்',
+    'Chettinad Traditional Spice & Catering Master': 'செட்டிநாடு பாரம்பரிய சமையல் மற்றும் மசாலா மாஸ்டர்',
+    'Athangudi Handmade Floor Tile Artisan': 'ஆத்தங்குடி பாரம்பரிய தரை ஓடு கைவினைஞர்',
+    'Traditional Pottery & Musical Ghatam Maker': 'மானாமதுரை கடம் மற்றும் மண்பாண்ட கலைஞர்',
+    'Graphite Mining Processing Helper': 'கிராஃபைட் தாது மிதவை ஆலை உதவியாளர்',
+    'Seashell & Conch Handicraft Artisan': 'சங்கு மற்றும் சிப்பி கைவினைப் பொருட்கள் செதுக்குபவர்',
+    'Island Pilgrimage Transit Coordinator': 'ராமேஸ்வரம் தீவு யாத்ரீகர்கள் உதவி ஒருங்கிணைப்பாளர்',
+    'Solar PV Array Maintenance & Cleaning Tech': 'சூரிய மின் தகடு சுத்தம் மற்றும் பராமரிப்பு',
+    'Dry Fish Salt-Curing & Solar Drying Specialist': 'கருவாடு உப்பு பதனிடுதல் மற்றும் சோலார் உலர் கூட உதவியாளர்',
+    'Palm Jaggery (Karupatti) Boiling Master': 'பனை கருப்பட்டி காய்ச்சும் மாஸ்டர்',
+    'Banana Fiber Extraction Machine Hand': 'வாழை நார் பிரித்தெடுக்கும் இயந்திர ஆபரேட்டர்',
+    'Bodinayakanur Cardamom Auction Sorter': 'போடிநாயக்கனூர் ஏலக்காய் ஏல தரம் பிரிப்பவர்',
+    'Cumbum Valley Grape Harvesting Specialist': 'கம்பம் பள்ளத்தாக்கு திராட்சை அறுவடை நிபுணர்',
+    'Country Sugar (Nattu Sakkarai) Maker': 'நாட்டு சர்க்கரை தயாரிப்பாளர்',
+    'Cotton Ginning Saw Machine Operator': 'பருத்தி பஞ்சு பிரித்தெடுக்கும் இயந்திர ஆபரேட்டர்',
+    'Courtallam Season Tourism Assistant': 'குற்றாலம் சீசன் சுற்றுலா மற்றும் வழிகாட்டுதல்',
+    'Wholesale Grain Mandi Logistics Handler': 'தானிய மண்டி மூட்டை தூக்குதல் மற்றும் தைத்தல்',
+    'Oil Mill Expeller & Filter Press Operator': 'எண்ணெய் ஆலை எக்ஸ்பெல்லர் மற்றும் பில்டர் பிரஸ் ஆபரேட்டர்',
+    'Wholesale Red Chilli & Spice Grader': 'மொத்த மிளகாய் மற்றும் மசாலா தரம் பிரிப்பவர்',
+    'Sugar Mill Processing Operator': 'சர்க்கரை ஆலை செயலாக்க ஆபரேட்டர்',
+    'Raw Cashew Decorticator Machine Operator': 'பச்சை முந்திரி பருப்பு உடைக்கும் இயந்திர ஆபரேட்டர்',
+    'Arani Silk Saree Handloom Weaver': 'ஆரணி பட்டு சேலை கைத்தறி நெசவாளர்',
+    'Traditional Wood Ghani Oil Press Operator': 'பாரம்பரிய மரச்செக்கு நல்லெண்ணெய் ஆலை ஆபரேட்டர்',
+    'Girivalam Pilgrim Logistics Coordinator': 'கிரிவலம் பக்தர் சேவை மற்றும் அன்னதான ஒருங்கிணைப்பாளர்',
+    'Granite Gangsaw Block Slicing Operator': 'கிரானைட் கேங்சா கல் அறுக்கும் ஆபரேட்டர்',
+    'Floriculture Flower Sorter & Stringer': 'மலர் மாலை கட்டுதல் மற்றும் தரம் பிரித்தல்',
+    'Mango Pulp Industrial Canning Operator': 'மாம்பழ கூழ் கேனிங் மற்றும் பாஸ்டுரைசேஷன் ஆபரேட்டர்',
+    'Sericulture Silkworm Cocoon Rearing Hand': 'பட்டுப்புழு வளர்ப்பு மற்றும் கூடு அறுவடை உதவியாளர்',
+    'Marine Fish Salting & Sun-Curing Hand': 'கருவாடு உப்பு பதனிடுதல் மற்றும் உலர்த்துதல்',
+    'Cashew Decortication & Oven Roasting Operator': 'முந்திரி கொட்டை உடைத்தல் மற்றும் வறுக்கும் ஆபரேட்டர்',
+    'Lignite Mine Conveyor Maintenance Tech': 'நெய்வேலி நிலக்கரி கன்வேயர் பெல்ட் பராமரிப்பு',
+    'Harbor Fish Auction Sorting & Ice Packing': 'மீன்பிடி துறைமுக ஏல மீன் வகைப்படுத்துதல் மற்றும் ஐஸ் பேக்கிங்',
+    'Deep-Sea Trawler Net Rigging & Deck Hand': 'ஆழ்கடல் மீன்பிடி படகு வலை கட்டும் டெக் குழு',
+    'Deep Borewell Rig Machinery Operation': 'ஆழ்துளை கிணறு ரிக் இயந்திர ஆபரேட்டர்',
+    'Heavy Lorry Chassis & Cabin Welding Tech': 'லாரி சேஸ் மற்றும் கேபின் வெல்டர்',
+    'Commercial Poultry Egg Grading Specialist': 'வணிக கோழிப்பண்ணை முட்டை தரம் பிரிக்கும் நிபுணர்',
+    'Yarn Dyeing & Hydro-Extraction Operator': 'நூல் சாயம் ஏற்றுதல் மற்றும் நீர் நீக்கும் ஆபரேட்டர்',
+    'Commercial Bus Body MIG Welding Tech': 'பேருந்து பாடி பில்டிங் எம்ஐஜி வெல்டர்',
+    'Home Textile Jacquard Linen Weaving Tech': 'வீட்டு ஜவுளி ஜாக்கார்டு லினன் நெசவாளர்',
+    'Tannery Leather Buffing & Trimming Tech': 'தோல் பதனிடும் பஃபிங் மற்றும் டிரிம்மிங் டெக்னீஷியன்',
+    'Sirumalai Mountain Banana & Cardamom Sorter': 'சிறுமலை மலை வாழைப்பழம் மற்றும் ஏலக்காய் தரம் பிரிப்பவர்',
+    'Handcrafted Brass Lock Assembly Artisan': 'திண்டுக்கல் பித்தளை பூட்டு அசெம்பிளி கைவினைஞர்',
+    'Hill Vegetable & Fruit Cold Packing Hand': 'மலைத்தோட்ட காய்கறி மற்றும் பழ பேக்கிங்',
+    'Eucalyptus Essential Oil Distillation Worker': 'நீலகிரி தைல மர எண்ணெய் காய்ச்சி வடித்தல்',
+    'Orthodox Tea Plucking & Processing Hand': 'தேயிலை கொழுந்து பறித்தல் மற்றும் பதப்படுத்துதல்',
+    'Auto Sheet Metal Stamping Press Operator': 'வாகன உதிரிபாக ஸ்டாம்பிங் பிரஸ் ஆபரேட்டர்',
+    'SMT Electronics Component Inspection': 'SMT எலக்ட்ரானிக்ஸ் போர்டு ஆய்வாளர்',
+    'Kanchipuram Pure Silk Zari Weaving Master': 'காஞ்சிபுரம் பட்டு ஜரிகை நெசவு மாஸ்டர்',
+    'Floriculture Dutch Rose Export Harvest Hand': 'டச்சு ரோஜா மலர் ஏற்றுமதி அறுவடை உதவியாளர்',
+    'Precision Tool & Die Machine Operator': 'துல்லிய கருவி மற்றும் டை இயந்திர ஆபரேட்டர்',
+    'EV Battery Module Assembly & Spot Welding': 'மின்சார வாகன பேட்டரி மாட்யூல் ஸ்பாட் வெல்டர்',
+    'Fireworks Pyro-Mixing & Safety Fuse Setting': 'பட்டாசு வேதியியல் கலவை மற்றும் திரி பொருத்துதல்',
+    'Cashew Kernel Peeling & Vacuum Grading Hand': 'முந்திரி பருப்பு உறித்தல் மற்றும் வெற்றிட பேக்கிங்',
+    'Rubber Latex Tapping & Smoking Tech': 'ரப்பர் பால் வடித்தல் & புகைத்தாள் தயாரிப்பு',
+    'Seafood Cold Storage Blast Freezer Packaging': 'கடல் உணவு பிளாஸ்ட் ப்ரீசர் பேக்கிங்',
+    'Marine Salt Pan Raking & Refining Hand': 'கடல் உப்பு பாத்தி வார்ப்பு மற்றும் சுத்திகரிப்பு',
+    'Harbor Crane Container Stevedore': 'துறைமுக கிரேன் கன்டெய்னர் ஸ்டீவ்டோர்',
+    'Thanjavur Art Plate Embossing Craftsman': 'தஞ்சாவூர் கலை தட்டு செதுக்கும் கைவினைஞர்',
+    'Bronze Chola Statue Casting & Engraving': 'சோழர் கால வெண்கல சிலை வார்ப்பு மற்றும் செதுக்குதல்',
+    'Paddy Combine Harvester Machine Operator': 'நெல் அறுவடை இயந்திர ஆபரேட்டர்',
+    'Powerloom Fabric Weaving & Maintenance': 'விசைத்தறி துணி நெசவு மற்றும் பராமரிப்பு',
+    'Bhavani Jamakkalam Carpet Handloom Artisan': 'பவானி ஜமக்காளம் கைத்தறி நெசவாளர்',
+    'Turmeric Grading & Moisture Testing Specialist': 'மஞ்சள் தரம் மற்றும் ஈரப்பதம் சோதனை நிபுணர்',
+    'Export Apparel Finishing & Packing': 'ஏற்றுமதி ஆடை பினிஷிங் மற்றும் பேக்கிங்',
+    'Fabric Screen Printing & Color Kitchen': 'துணி ரோட்டரி ஸ்கிரீன் பிரிண்டிங் & வண்ண கலவை',
+    'Knitwear Garment Flatlock Tailoring Master': 'பின்னலாடை ஃப்ளாட்லாக் தையல் மாஸ்டர்',
+    'Finished Leather Quality Inspection': 'முடிக்கப்பட்ட தோல் தர பரிசோதனை',
+    'Transit Freight Logistics': 'ரயில்வே சரக்கு போக்குவரத்து லாஜிஸ்டிக்ஸ்',
+    'Hospital Patient Desk Navigation': 'மருத்துவமனை நோயாளிகள் வழிகாட்டுதல்',
+    'Paper Mill Pulp Processing Operator': 'காகித ஆலை கூழ் தயாரிப்பு உதவியாளர்',
+    'Wind Turbine Blade Maintenance Tech': 'காற்றாலை பிளேடு ஆய்வு மற்றும் பராமரிப்பு',
+    'Tirunelveli Halwa Clarified Ghee Cooking Master': 'திருநெல்வேலி அல்வா நெய் தயாரிப்பு மாஸ்டர்',
+    'Silver Anklet Jewelry Polishing Artisan': 'வெள்ளி கொலுசு மெருகூட்டல் கைவினைஞர்',
+    'Sago & Starch Processing Operator': 'ஜவ்வரிசி மற்றும் மரவள்ளிக்கிழங்கு மாவு ஆலை ஆபரேட்டர்',
+    'Steel Furnace & Rolling Mill Operation': 'எஃகு உலை மற்றும் உருட்டாலை ஆபரேட்டர்',
+    'Railway Locomotive Mechanical Maintenance': 'ரயில்வே இன்ஜின் மெக்கானிக்கல் பராமரிப்பு',
+    'High-Pressure Boiler Tube TIG Welding': 'உயர் அழுத்த பாய்லர் டிஐஜி வெல்டர்',
+    'Sungudi Cotton Saree Wax Dyeing': 'சுங்குடி காட்டன் புடவை மெழுகு டை கலைஞர்',
+    'Madurai Malli Jasmine Stringing & Cold Chain': 'மதுரை மல்லி பூ கட்டுதல் மற்றும் குளிர்பதன பேக்கிங்',
+    'Foundry Sand Moulding & Core Casting': 'ஃபவுண்டரி மணல் மோல்டிங் & வார்ப்பு கலைஞர்',
+    'Textile Ring Spinning Maintenance': 'ஜவுளி மில் ரிங் ஸ்பின்னிங் பராமரிப்பு',
+    'Agricultural Pump Assembly Technician': 'விவசாய மற்றும் மோனோபிளாக் பம்ப் அசெம்பிளி டெக்னீஷியன்',
+    'Precision CNC Lathe & Milling Operator': 'துல்லிய CNC லேத் மற்றும் அரைக்கும் இயந்திர ஆபரேட்டர்',
+    'Container Logistics': 'கன்டெய்னர் லாஜிஸ்டிக்ஸ்',
     // App header & Global
-    appName: 'Skill2Work (வேலை2திறன்)',
-    regionTag: 'வேலூர் மாவட்டம்',
-    tagline: 'சரியான திறன்கள். சரியான வேலை. உண்மையான தாக்கம். • வேலூர்',
+    appName: 'Talent2Task (திறமை2பணி)',
+    regionTag: 'தமிழ்நாடு',
+    tagline: 'சரியான திறன்கள். சரியான வேலை. உண்மையான தாக்கம். • தமிழ்நாடு',
     offlineStatus: 'ஆஃப்லைன் SQLite பயன்முறை',
     sqlTerminal: 'SQLite கன்சோல்',
-    roleSeeker: 'வேலை தேடுபவர்',
-    roleRecruiter: 'பணியமர்த்துபவர்',
+    roleSeeker: 'வேலை தேடுபவர் (Job Seeker)',
+    roleRecruiter: 'வேலை வழங்குபவர் (Job Recruiter)',
     switchRole: 'பங்கை மாற்று',
     offlineAlert: 'நீங்கள் ஆஃப்லைனில் உள்ளீர்கள். உங்கள் சேமிக்கப்பட்ட வேலைகள் மற்றும் விவரங்கள் உள்ளூரில் கிடைக்கின்றன.',
     marketDemand: 'சந்தை தேவை',
@@ -551,57 +984,65 @@ export const TRANSLATIONS: Record<Language, TranslationDictionary> = {
     // Login Page
     loginWelcome: 'நல்வரவு',
     loginHeading: 'தொடர உள்நுழையவும்',
-    loginSubtitle: 'உங்கள் கணக்கு வகையைத் தேர்ந்தெடுத்து உங்கள் தளத்தை அணுகவும்.',
+    loginSubtitle: 'உங்கள் தளத்தை அணுகவும்.',
     loginSeekerDesc: 'உள்ளூர் வேலைகளைக் கண்டறியவும்',
     loginRecruiterDesc: 'வேலையைப் பதிவிடவும்',
-    loginEmailLabel: 'மின்னஞ்சல் அல்லது மொபைல் எண்',
-    loginEmailPlaceholder: 'you@example.com',
+    loginEmailLabel: 'கைபேசி எண் (Mobile Number)',
+    loginEmailPlaceholder: '98765 43210',
     loginPasswordLabel: 'கடவுச்சொல்',
     loginPasswordPlaceholder: 'கடவுச்சொல்லை உள்ளிடவும்',
     loginRememberMe: 'என்னை நினைவில் கொள்',
     loginForgotPassword: 'கடவுச்சொல்லை மறந்துவிட்டீர்களா?',
-    loginSignInSeeker: 'வேலை தேடுபவராக உள்நுழைக',
-    loginSignInRecruiter: 'பணியமர்த்துபவராக உள்நுழைக',
-    loginNewPrompt: 'Skill2Work-க்கு புதியவரா?',
+    loginSignInSeeker: 'உள்நுழைக',
+    loginSignInRecruiter: 'உள்நுழைக',
+    loginNewPrompt: 'Talent2Task-க்கு புதியவரா?',
     loginCreateAccount: 'புதிய கணக்கை உருவாக்கவும்',
     loginHeroTitle1: 'சரியான திறன்கள்.',
     loginHeroTitle2: 'சரியான வேலை.',
     loginHeroTitleHighlight: 'உண்மையான தாக்கம்.',
     loginHeroDesc: 'நம்பகமான உள்ளூர் பகுதி நேர வேலைகளைக் கண்டறியுங்கள் அல்லது திறமையான பணியாளர்களை ஒரே இடத்தில் பணியமர்த்துங்கள்.',
-    loginStatRadar: '3 கி.மீ',
-    loginStatRadarSub: 'உள்ளூர் ரேடார்',
+    loginStatRadar: 'நேரடி GPS',
+    loginStatRadarSub: 'தமிழ்நாடு ரேடார்',
     loginStatOpp: '24/7',
     loginStatOppSub: 'வாய்ப்புகள்',
     tabSignIn: 'உள்நுழைவு',
     tabCreateAccount: 'கணக்கை உருவாக்கு',
     newUserRegistration: 'புதிய பயனர் பதிவு',
-    joinSkill2Work: 'ஸ்கில்2ஒர்க் வேலூரில் இணையுங்கள்',
-    createAccountSubtitle: 'வேலூரில் 3 கி.மீ பகுதியில் உள்ள பகுதிநேர வேலைகளை பெற அல்லது பதிவிட கணக்கை உருவாக்குங்கள்.',
+    joinTalent2Task: 'டேலண்ட்2டாஸ்க் தமிழ்நாட்டில் இணையுங்கள்',
+    createAccountSubtitle: 'தமிழ்நாடு முழுவதும் உள்ள பகுதிநேர வேலைகளை பெற அல்லது பதிவிட கணக்கை உருவாக்குங்கள்.',
     fullNameLabel: 'முழு பெயர்',
     companyNameLabel: 'நிறுவனம் / வணிக பெயர்',
     fullNamePlaceholder: 'எ.கா. கார்த்திக் ராஜா',
-    companyNamePlaceholder: 'எ.கா. வேலூர் ஃப்ரெஷ் மார்ட்',
+    companyNamePlaceholder: 'எ.கா. தமிழ்நாடு ஃப்ரெஷ் மார்ட்',
     mobilePhoneLabel: 'கைபேசி எண்',
-    mobilePhonePlaceholder: '+91 98401 23456',
+    mobilePhonePlaceholder: '98765 43210',
     ageLabel: 'வயது',
-    selectVelloreLocation: 'வேலூர் முதன்மை இடத்தை தேர்ந்தெடுக்கவும்',
-    useGpsBtn: 'ஜிபிஎஸ் பயன்படுத்து',
+    yearsOfExperienceLabel: 'பணி அனுபவம் (ஆண்டுகள்)',
+    cityLabel: 'நகரம் / பகுதி (தமிழ்நாடு)',
+    selectVelloreLocation: 'நகரம் / முதன்மை இடத்தை தேர்ந்தெடுக்கவும்',
+    selectCity: 'நகரத்தைத் தேர்வுசெய்க',
+    useGpsBtn: 'நேரடி ஜிபிஎஸ்',
+    gpsPromptTitle: 'அருகிலுள்ள வேலைகளைப் பெற நேரடி ஜிபிஎஸ் இயக்கவும்',
+    gpsPromptSubtitle: 'தமிழ்நாடு முழுவதும் உங்களுக்கு மிக அருகில் உள்ள வேலைகளைப் பெற இருப்பிட அனுமதியை வழங்கவும்',
     skillsOffered: 'திறன்கள் மற்றும் சேவைகள்',
     availableTimeSlots: 'கிடைக்கும் நேரங்கள்',
-    createSeekerAccountBtn: 'வேலை தேடுபவர் கணக்கை உருவாக்கு (DB சேமிப்பு)',
-    createRecruiterAccountBtn: 'பணியமர்த்துபவர் கணக்கை உருவாக்கு (DB சேமிப்பு)',
+    createSeekerAccountBtn: 'கணக்கை உருவாக்கு',
+    createRecruiterAccountBtn: 'கணக்கை உருவாக்கு',
     alreadyRegisteredPrompt: 'ஏற்கனவே பதிவு செய்துள்ளீர்களா?',
     signInNowBtn: 'இப்போது உள்நுழையவும்',
-    orSignInRegistered: 'அல்லது பதிவுசெய்யப்பட்ட பயனராக உள்நுழையவும்',
-    sqliteSavedFeature: 'SQLite WASM தரவுத்தளத்தில் உடனடியாக சேமிக்கப்பட்டது',
-    radar3kmFeature: 'உள்ளூர் 3 கி.மீ ரேடார் வேலை பொருத்தம்',
+    orSignInRegistered: '',
+    sqliteSavedFeature: 'SQLite தரவுத்தளத்தில் உடனடியாக சேமிக்கப்பட்டது',
+    radar3kmFeature: 'நேரடி ஜிபிஎஸ் & நகர ரேடார் பொருத்தம்',
+    exploreGigsTab: 'வேலைகளைத் தேடுங்கள்',
+    manageGigsTab: 'பதிவிட்டு நிர்வகிக்கவும்',
+    postGigTab: 'வேலையைப் பதிவிடவும்',
 
     // Seeker Tab
-    radarHeading: 'வேலூர் நேரடி வேலை ரேடார்',
+    radarHeading: 'நேரடி வேலை ரேடார் (தமிழ்நாடு)',
     radarSubtitle: 'உங்களுக்கு மிக அருகில் உள்ள பகுதி நேர வேலைகளைக் கண்டறியவும்',
     withinRadius: 'சுற்றளவிற்குள்',
     radiusSlider: 'தூர வடிகட்டி',
-    allVellore: 'முழு வேலூர்',
+    allVellore: 'முழு தமிழ்நாடு',
     matchScore: 'பொருத்தம்',
     claimJobBtn: 'வேலையை ஏற்றுக்கொள்',
     claimedBadge: 'நீங்கள் ஏற்றுக்கொண்டவை',
@@ -609,6 +1050,23 @@ export const TRANSLATIONS: Record<Language, TranslationDictionary> = {
     completedBadge: 'முடிக்கப்பட்டது',
     jobDetailsTitle: 'வேலை விவரங்கள் மற்றும் தொடர்பு',
     directionsBtn: 'வழிப்பாதை காண்க',
+    directionsModalTitle: 'வேலைக்கான வழிப்பாதை & வரைபடம்',
+    directionsModalSubtitle: 'துல்லியமான GPS வழிகாட்டல் & நேரலை பாதை',
+    yourLocationLabel: 'நீங்கள் இருக்கும் தொடக்க இடம்',
+    gigLocationLabel: 'வேலை நடைபெறும் இடம்',
+    startNavigationBtn: 'Google Maps வழிசெலுத்தலைத் தொடங்கு',
+    openGoogleMapsBtn: 'Google Maps GPS',
+    openAppleMapsBtn: 'Apple Maps',
+    onMyWayBtn: 'நான் கிளம்பிவிட்டேன் (On My Way)',
+    onMyWayAlertSent: 'பணியளிப்பவருக்கு வருகை நேரம் தெரிவிக்கப்பட்டது!',
+    travelModeBike: 'இருசக்கர வாகனம் (பைக்)',
+    travelModeCar: 'கார் / டாக்ஸி',
+    travelModeAuto: 'ஆட்டோ / போக்குவரத்து',
+    travelModeWalk: 'நடந்து செல்லுதல்',
+    liveGpsAccurate: 'துல்லியமான GPS இருப்பிடம் இயக்கத்தில் உள்ளது',
+    estimatedArrival: 'பயண கால அளவு',
+    turnByTurnGuide: 'வழிகாட்டுதல் குறிப்புகள்',
+    readyToGoBanner: 'கிளம்பத் தயாரா? வேலைக்கான நேரலை GPS வழிப்பாதையைப் பெறுங்கள்',
     callRecruiterBtn: 'அழைக்கவும்',
     whatsappRecruiterBtn: 'வாட்ஸ்அப்',
     myGigsTab: 'என் வேலைகள்',
@@ -640,20 +1098,60 @@ export const TRANSLATIONS: Record<Language, TranslationDictionary> = {
     skillsSelected: 'தேர்ந்தெடுக்கப்பட்டது',
     addCustomSkillPlaceholder: 'பிற திறனைச் சேர்க்கவும் (எ.கா: எலக்ட்ரீஷியன், டியூஷன்)...',
     myAvailability: 'கிடைக்கும் நேரம்',
-    myLocation: 'தற்போதைய வேலூர் இருப்பிடம் / GPS',
+    myLocation: 'தற்போதைய இருப்பிடம் / GPS',
     useCurrentGps: 'நேரடி GPS பெறுக',
     locating: 'கண்டறிகிறது...',
-    selectLandmark: 'வேலூர் முக்கிய இடத்தை தேர்வு செய்யவும்',
+    selectLandmark: 'முக்கிய இடத்தை தேர்வு செய்யவும்',
     saveProfileBtn: 'விவரங்களைச் சேமித்து ரேடாரைப் புதுப்பிக்கவும்',
+
+    // Recruiter Profile Location Details
+    doorNoLabel: 'கதவு / கடை / வளாக எண்',
+    doorNoPlaceholder: 'எ.கா. கதவு எண் 14/B, 2வது மாடி',
+    streetNameLabel: 'தெரு பெயர் / சாலை / பகுதி',
+    streetNamePlaceholder: 'எ.கா. அண்ணா சாலை, காந்தி தெரு',
+    cityOrDistrictLabel: 'நகரம் அல்லது மாவட்டம்',
+    landmarkFieldLabel: 'அடையாள இடம் (முக்கிய மையம்)',
+    landmarkFieldPlaceholder: 'எ.கா. பேருந்து நிலையம் அருகில் / வங்கி எதிரில்',
+    workplaceAddressLabel: 'முழு பணியிட முகவரி (வரைபட வழிகாட்டுதல்)',
+    workplaceAddressHint: 'உங்கள் வேலைகளை ஏற்கும் பணியாளர்கள் இந்த பணியிட முகவரிக்கு நேரடி வரைபட வழிகாட்டுதலைப் பெறுவார்கள்.',
+    recruiterLocationTitle: 'பணியிட & வணிக இருப்பிடம்',
+    recruiterLocationSubtitle: 'துல்லியமான வரைபட வழிகாட்டலுக்கு கதவு எண், தெரு, அடையாளம் மற்றும் மாவட்டத்தை நிர்வகிக்கவும்',
+
+    // Phase 35 — Payment Feature UI Terminology
+    payNowBtn: 'இப்போது செலுத்துக',
+    paymentSuccessful: 'பணம் செலுத்துதல் வெற்றிகரமாக முடிந்தது',
+    paymentReceived: 'பணம் பெறப்பட்டது',
+    processingPayment: 'பணம் செலுத்தப்படுகிறது...',
+    paymentCompleted: 'பணம் செலுத்துதல் முடிந்தது',
+    paidStatus: 'செலுத்தப்பட்டது',
 
     // Skill Gap & AI Recommendations
     skillGapTitle: 'AI திறன் இடைவெளி & தொழில் பரிந்துரைகள்',
     skillGapBadge: '+35% பொருத்த மதிப்பெண் உயர்வு',
-    skillGapDesc: 'வேலூரின் முக்கிய வேலைகளில் 90%+ பொருத்த மதிப்பெண்ணைப் பெற இந்த அதிக தேவை கொண்ட திறன்களை உங்கள் விவரக்குறிப்பில் சேர்க்கவும்.',
+    skillGapDesc: 'முக்கிய வேலைகளில் 90%+ பொருத்த மதிப்பெண்ணைப் பெற இந்த அதிக தேவை கொண்ட திறன்களை உங்கள் விவரக்குறிப்பில் சேர்க்கவும்.',
     addToMySkills: 'எனது திறன்களில் சேர்',
     neededInGigs: 'தேவைப்படும் வேலைகள்:',
     allStarTitle: 'சிறந்த திறன் விவரக்குறிப்பு!',
-    allStarDesc: 'அருகிலுள்ள வேலூர் வேலைகளில் கேட்கப்படும் அனைத்து திறன்களையும் உங்கள் விவரக்குறிப்பு கொண்டுள்ளது.',
+    allStarDesc: 'அருகிலுள்ள வேலைகளில் கேட்கப்படும் அனைத்து திறன்களையும் உங்கள் விவரக்குறிப்பு கொண்டுள்ளது.',
+
+    // Phase 4 — AI Skill Understanding & Skill-Gap Engine
+    skillGapCurrentSkills: 'தற்போதைய திறன்கள்',
+    skillGapRelatedSkills: 'தொடர்புடைய திறன்கள்',
+    skillGapMissingSkills: 'அதிக தேவை கொண்ட விடுபட்ட திறன்கள்',
+    skillGapUpskillingPath: 'பரிந்துரைக்கப்பட்ட திறன் மேம்பாட்டுப் பாதை',
+    skillGapCoverage: 'சந்தை திறன் பாதுகாப்பு',
+    skillGapUnlockedGigs: 'திறக்கப்படும் வேலைகள்',
+    skillGapPotentialBoost: 'கூடுதல் வருவாய் வாய்ப்பு',
+    skillGapWhyRecommended: 'இது ஏன் பரிந்துரைக்கப்படுகிறது',
+    skillGapStep: 'படி',
+    skillGapAffinity: 'AI பொருத்தம்',
+    skillGapDemand: 'சந்தை தேவை',
+    skillGapBridge: 'இணைப்புத் திறன்',
+    skillGapHighDemandBadge: 'அதிக தேவை',
+    skillGapHighPayBadge: 'அதிக வருவாய்',
+    skillGapExploreSteps: 'மேம்பாட்டுப் பாதை',
+    skillGapAllStages: 'முழு திறன் பகுப்பாய்வு',
+    skillGapAddSkillBtn: 'என் திறன்களில் சேர்',
 
     // Recruiter Portal
     recruiterHeading: 'பணியமர்த்துபவர் கட்டுப்பாட்டு மையம்',
@@ -679,8 +1177,8 @@ export const TRANSLATIONS: Record<Language, TranslationDictionary> = {
     noRecruiterGigs: 'நீங்கள் இன்னும் வேலைகளைப் பதிவிடவில்லை. தொடங்க "புதிய வேலை இடுக" என்பதை கிளிக் செய்யவும்!',
 
     // Post Gig Form
-    postModalTitle: 'வேலூர் உள்ளூர் வேலை பதிவிடுதல்',
-    postModalSubtitle: '3 கி.மீ ரேடாரில் உடனடியாகக் கண்டறிய வேலூர் உள்ளூர் வேலையைப் பதிவிடவும்',
+    postModalTitle: 'உள்ளூர் வேலை பதிவிடுதல்',
+    postModalSubtitle: 'ரேடாரில் உடனடியாகக் கண்டறிய உள்ளூர் வேலையைப் பதிவிடவும்',
     jobTitleLabel: 'வேலை தலைப்பு',
     jobTitlePlaceholder: 'எ.கா: டெலிவரி உதவியாளர், கடை பில்லிங், நிகழ்வு உதவி',
     categoryLabel: 'பிரிவு',
@@ -693,9 +1191,9 @@ export const TRANSLATIONS: Record<Language, TranslationDictionary> = {
     perShift: 'ஷிஃப்ட்டிற்கு',
     perDay: 'நாளுக்கு',
     requiredSkillsLabel: 'தேவைப்படும் திறன்கள்',
-    landmarkAreaLabel: 'வேலூர் பகுதி / இடம்',
+    landmarkAreaLabel: 'பகுதி / இடம்',
     clickMapInstruction: 'சரியான இடத்தை தேர்ந்தெடுக்க வரைபடத்தில் கிளிக் செய்யவும் அல்லது தேர்வு செய்யவும்',
-    publishJobBtn: 'வேலையை வெளியிடுக (SQLite)',
+    publishJobBtn: 'வேலையை வெளியிடுக',
 
     // Categories
     catDelivery: 'டெலிவரி மற்றும் போக்குவரத்து',
@@ -706,7 +1204,7 @@ export const TRANSLATIONS: Record<Language, TranslationDictionary> = {
     catElectrical: 'தொழில்நுட்பம் & பராமரிப்பு',
 
     // Filter & Search
-    searchPlaceholder: 'வேலை, திறன் அல்லது வேலூர் பகுதியைத் தேடுங்கள்...',
+    searchPlaceholder: 'வேலை, திறன் அல்லது பகுதியைத் தேடுங்கள்...',
     categoryFilter: 'பிரிவு',
     allCategories: 'அனைத்து பிரிவுகளும்',
     minPayFilter: 'குறைந்தபட்ச ஊதியம் (₹)',
@@ -720,19 +1218,100 @@ export const TRANSLATIONS: Record<Language, TranslationDictionary> = {
     matchedSkillsLabel: 'பொருந்திய திறன்கள்',
     missingSkillsLabel: 'இல்லாத திறன்கள்',
 
+    // Hybrid AI Matching & Explainability
+    whyRecommended: 'இந்த வேலை ஏன் பரிந்துரைக்கப்படுகிறது?',
+    hybridMatchBreakdown: 'ஹைப்ரிட் AI பொருத்த விவரம்',
+    skillSimilarityLabel: 'திறன் ஒற்றுமை',
+    distanceFactorLabel: 'தூரம்',
+    availabilityFactorLabel: 'நேரப் பொருத்தம்',
+    experienceFactorLabel: 'அனுபவம்',
+    localDemandFactorLabel: 'உள்ளூர் தேவை',
+    reliabilityFactorLabel: 'நம்பகத்தன்மை',
+
+    // Phase 3 — NLP Requirement Understanding
+    aiRequirementAssistant: 'AI தேவை பகுப்பாய்வு உதவியாளர்',
+    aiFastDraftTitle: 'இயற்கை மொழியில் விரைவு வரைவு',
+    aiInputPlaceholder: 'உதாரணமாக: சிவகாசி அல்லது மதுரை அருகில் அனுபவமிக்க பணியாளர் தேவை...',
+    extractWithAiBtn: 'AI மூலம் பகுப்பாய்வு செய்',
+    analyzingWithAi: 'பகுப்பாய்வு செய்கிறது...',
+    extractedDetailsTitle: 'AI கண்டறிந்த விவரங்கள் — சரிபார்த்து திருத்தவும்',
+    extractedDetailsSubtitle: 'படிவத்தில் சேர்க்கும் முன் விவரங்களை சரிபார்த்து திருத்திக் கொள்ளலாம்',
+    applyExtractedBtn: 'படிவத்தில் சேர்',
+    dismissExtractedBtn: 'அழி',
+    detectedIntent: 'நோக்கம்',
+    hiringWorkerIntent: 'பணியாளர் நியமனம்',
+    detectedExperience: 'அனுபவம்',
+    detectedShift: 'நேர / பணி முறை',
+    detectedLocation: 'இடம்',
+    detectedPayout: 'ஊதியம்',
+    missingInformationAlert: 'கவனத்திற்குரியவை',
+    confirmBeforePostNotice: 'உங்கள் உறுதிப்படுத்தல் இல்லாமல் AI தகவல்கள் பதிவிடப்படாது. சரிபார்க்கவும்.',
+    aiSearchParsed: 'AI மொழித் தேடல்',
+    // Phase 6 — Voice & Multilingual AI
+    voiceSearchBtn: 'குரல் தேடல்',
+    voiceFastDraftBtn: 'தேவையை பேசுங்கள்',
+    voiceListening: 'கேட்கிறது... இப்போது பேசுங்கள்',
+    voiceListeningPrompt: 'தமிழ், தெலுங்கு, இந்தி அல்லது ஆங்கிலத்தில் பேசவும் அல்லது தட்டச்சு செய்யவும்',
+    voicePermissionDenied: 'மைக்ரோஃபோன் அணுகல் தடுக்கப்பட்டது',
+    voicePermissionHelp: 'உலாவி அமைப்புகளில் மைக்ரோஃபோன் அனுமதியை இயக்கவும் அல்லது மாதிரி குரல் உள்ளீடுகளை முயற்சிக்கவும்.',
+    voiceUnsupported: 'குரல் அறிதல் ஆதரிக்கப்படவில்லை',
+    voiceUnsupportedHelp: 'உங்கள் உலாவி Web Speech API-ஐ ஆதரிக்கவில்லை. தயவுசெய்து தட்டச்சு செய்யவும்.',
+    voiceSamplePhrases: 'குரல் AI மாதிரி உள்ளீடுகள்',
+    voiceTrySample: 'மாதிரி குரலை முயற்சிக்கவும்',
+    voiceProcessing: 'குரல் செயலாக்கப்படுகிறது...',
+    aiMultilingualActive: 'AI பன்மொழி & குரல் செயலில் உள்ளது',
+    aiLanguageDetected: 'மொழி கண்டறியப்பட்டது',
+    // Phase 7 — Trust & Safety
+    trustSafetyTitle: 'நம்பகத்தன்மை & பாதுகாப்பு மதிப்பீடு',
+    trustPotentialRisk: 'சாத்தியமான இடர் கண்டறியப்பட்டது',
+    trustVerifiedRecruiter: 'சரிபார்க்கப்பட்ட பணியமர்த்துபவர்',
+    trustStandardVerification: 'நிலையான சரிபார்ப்பு',
+    trustVerifiedListing: 'சரிபார்க்கப்பட்ட பட்டியல்',
+    trustNewRecruiterNote: 'புதிய பணியமர்த்துபவர் கணக்கு — நிலையான பாதுகாப்பு சோதனைகள் தேர்ச்சி பெற்றன. வேலைகள் முடிவடையும்போது மதிப்பீடுகள் உயரும்.',
+    trustReportJobBtn: 'புகாரளிக்கவும்',
+    trustReportModalTitle: 'வேலை வாய்ப்பைப் புகாரளிக்கவும்',
+    trustReportSuccessTitle: 'புகார் பரிசீலனைக்கு பதிவு செய்யப்பட்டது',
+    trustNoAutoBanNotice: 'தவறான பயன்பாட்டைத் தடுக்க, புகார்கள் அல்லது AI வழிமுறைகளின் அடிப்படையில் பயனர்கள் ஒருபோதும் தானாகத் தடை செய்யப்படுவதில்லை.',
+
+    // Phase 8 — Reliability & Continuous Feedback
+    workerReliabilityTitle: 'பணியாளர் நம்பகத்தன்மை & நற்பெயர்',
+    reliabilityScoreLabel: 'நம்பகத்தன்மை மதிப்பெண்',
+    reliabilityTierLabel: 'நற்பெயர் நிலை',
+    completionRateLabel: 'பணி நிறைவு விகிதம்',
+    continuousFeedbackLabel: 'தொடர்ச்சியான பின்னூட்ட சுழற்சி',
+    verifiedReviewsLabel: 'சரிபார்க்கப்பட்ட மதிப்பாய்வுகள்',
+    newWorkerBaselineNote: 'புதிய பணியாளர் அடிப்படை நிலை — Talent2Task இல் பணி வரலாற்றை உருவாக்குகிறது.',
+
     // Community Demand Modal
     demandModalTitle: 'சமூக தேவை மற்றும் திறன் போக்குகள்',
-    demandModalSubtitle: 'காட்பாடி, சிஎம்சி, விஐடி மற்றும் சத்துவாச்சாரியில் நேரடி தேவை திரட்டு',
-    demandRegionBadge: 'வேலூர் மாவட்ட நிகழ்நேர AI ரேடார்',
+    demandModalSubtitle: 'உண்மையான வேலை தரவு மூலம் தற்போதைய மற்றும் எதிர்காலத் தேவைக் கணிப்பு',
+    demandRegionBadge: 'தமிழ்நாடு நிகழ்நேர AI ரேடார்',
     topInDemandRole: 'அதிக தேவை கொண்ட வேலை',
     avgHourlyPayout: 'சராசரி மணிநேர ஊதியம்',
     peakHiringWindows: 'அதிக வேலைவாய்ப்பு நேரங்கள்',
     hourlyPaySub: 'அன்றைய தினமே உடனடி ஊதியம்',
     peakHiringSub: 'நெகிழ்வான பகுதி நேர ஷிப்டுகள்',
-    skillDemandRanking: 'வேலூர் தேவைப்படும் திறன்கள் மற்றும் ஊதிய விகிதம்',
+    skillDemandRanking: 'தேவைப்படும் திறன்கள் மற்றும் ஊதிய விகிதம்',
     openGigsSuffix: 'திறந்த வேலைகள்',
     topAreaLabel: 'முக்கிய பகுதி:',
     growthLabel: 'வளர்ச்சி:',
+    demandActualTitle: 'தற்போதைய உள்ளூர் தேவை',
+    demandPredictedTitle: 'எதிர்காலக் கணிக்கப்பட்ட தேவை',
+    demandLevelHigh: 'அதிகம்',
+    demandLevelMedium: 'நடுத்தரம்',
+    demandLevelLow: 'குறைவு',
+    demandTrendRising: 'அதிகரிக்கும்',
+    demandTrendStable: 'நிலையானது',
+    demandTrendSoftening: 'குறையும்',
+    demandInsufficientData: 'போதிய முந்தைய தரவு இல்லை',
+    demandAttributionTitle: 'தரவு மூலம் & ML மாதிரி வெளிப்படைத்தன்மை',
+    demandSelectRegion: 'மாவட்டம் / பகுதியைத் தேர்ந்தெடுக்கவும்',
+    demandActiveGigsLabel: 'செயலில் உள்ள வேலைகள்',
+    demandCompletedGigsLabel: 'முடிக்கப்பட்ட வேலைகள்',
+    demandModelArchitecture: 'ரேண்டம் ஃபாரஸ்ட் குழுமம் (10 முடிவெடுக்கும் மரங்கள்)',
+    demandWhyThisPrediction: 'தரவு & கணிப்பு விளக்கம்',
+    demandFilterGigsBtn: 'வேலைகளைப் பார்க்கவும்',
+    demandAllTamilNadu: 'முழு தமிழ்நாடு (மாநிலம் தழுவிய)',
 
     // Feedback Modal
     feedbackTitle: 'அனுபவத்தை மதிப்பிட்டு விமர்சனம் செய்க',
@@ -756,26 +1335,156 @@ export const TRANSLATIONS: Record<Language, TranslationDictionary> = {
     noResults: 'வினவல் வெற்றிகரமாக இயங்கியது, முடிவுகள் எதுவும் இல்லை.',
 
     // Footer & Toasts
-    footerTagline: 'சரியான திறன்கள். சரியான வேலை. உண்மையான தாக்கம்.',
-    footerEngineDesc: 'வேலூர் மாவட்ட உள்ளூர் பகுதி நேர வேலை தேடுபொறி — தமிழ்நாடு',
+    footerTagline: 'சரியான திறமை. சரியான பணி. உண்மையான தாக்கம்.',
+    footerEngineDesc: 'உள்ளூர் பகுதி நேர வேலை தேடுபொறி — தமிழ்நாடு',
     toastClaimSuccess: '🎉 வேலை ஏற்றுக்கொள்ளப்பட்டது! பணியமர்த்துபவருக்கு தொடர்பு விவரங்கள் பகிரப்பட்டன.',
     toastStatusUpdated: 'நிலை மாற்றப்பட்டது:',
-    toastJobDeleted: 'வேலை SQLite-லிருந்து நீக்கப்பட்டது.',
-    toastJobPosted: '🚀 புதிய வேலூர் வேலை பதிவிடப்பட்டது மற்றும் 3 கிமீ ரேடாரில் நேரலையில் உள்ளது!',
+    toastJobDeleted: 'வேலை நீக்கப்பட்டது.',
+    toastJobPosted: '🚀 புதிய வேலை பதிவிடப்பட்டது மற்றும் தமிழ்நாடு ரேடாரில் நேரலையில் உள்ளது!',
     toastProfileUpdated: '✅ சுயவிவரம் மற்றும் GPS புதுப்பிக்கப்பட்டது.',
     toastSkillAdded: 'சேர்க்கப்பட்டது! AI பொருத்த மதிப்பெண் மறு கணக்கீடு செய்யப்பட்டது.',
-    toastReviewSaved: '⭐ மதிப்பீடு சேமிக்கப்பட்டது! சமூக நம்பிக்கை புதுப்பிக்கப்பட்டது.'
+    toastReviewSaved: '⭐ மதிப்பீடு சேமிக்கப்பட்டது! சமூக நம்பிக்கை புதுப்பிக்கப்பட்டது.',
+    nextStepBtn: 'அடுத்து',
+    backStepBtn: 'பின்செல்',
+    stepAccountInfo: '1. கணக்கு விவரங்கள்',
+    stepLocationExperience: '2. அனுபவம் & இருப்பிடம்',
+    stepLocationDetails: '2. இருப்பிட விவரங்கள்',
+    selectRoleLabel: 'உங்கள் பங்கை தேர்ந்தெடுக்கவும்',
+    phoneExact10DigitsError: 'சரியாக 10 இலக்க மொபைல் எண்ணை உள்ளிடவும்.',
+    passwordRegexError: 'கடவுச்சொல் 8-12 எழுத்துகள் நீளமாகவும், குறைந்தது ஒரு எண் மற்றும் ஒரு சிறப்பு குறியீட்டுடனும் இருக்க வேண்டும்.',
+    passwordRegexHint: '8-12 எழுத்துகள், குறைந்தது 1 எண் & 1 சிறப்பு குறியீடு'
   },
 
   hi: {
+    'Turmeric Root Sun-Drying & Bagging Hand': 'மஞ்சள் கிழங்கு உலர்த்துதல் மற்றும் மூட்டை கட்டுதல்',
+    'Parboiled Rice Huller Mill Operator': 'புழுங்கல் அரிசி ஆலை ஹல்லர் ஆபரேட்டர்',
+    'Sugar Mill Sugarcane Crusher Feeder': 'கள்ளக்குறிச்சி சர்க்கரை ஆலை கரும்பு அரவை ஆபரேட்டர்',
+    'Shallot (Small Onion) Grading Sorter': 'சின்ன வெங்காயம் தரம் பிரித்து பேக்கிங் செய்பவர்',
+    'Gypsum Mineral Processing Helper': 'ஜிப்சம் கனிம செயலாக்க உதவியாளர்',
+    'Hybrid Maize Seed Sorting Specialist': 'பெரம்பலூர் மக்காச்சோள விதை தரம் பிரிக்கும் நிபுணர்',
+    'Groundnut Decorticator & Oil Extraction Operator': 'மணப்பாறை நிலக்கடலை எண்ணெய் ஆலை எக்ஸ்பெல்லர்',
+    'Synthetic Gemstone Faceting & Lapidary Polisher': 'செயற்கை வைர மற்றும் ரத்தின பாலிஷிங் கலைஞர்',
+    'Irrigation Canal Sluice Gate Maintenance Hand': 'பாசன கால்வாய் மதகு பராமரிப்பு உதவியாளர்',
+    'Tiruvarur Chariot Silk Border Weaving Artisan': 'திருவாரூர் ஆழித்தேர் பட்டு பார்டர் நெசவு கலைஞர்',
+    'Certified Paddy Seed Moisture & Purity Sorter': 'சான்றளிக்கப்பட்ட நெல் விதை ஈரப்பதம் மற்றும் தூய்மை பரிசோதகர்',
+    'Traditional Cotton Dhoti Handloom Weaver': 'பாரம்பரிய காட்டன் வேட்டி கைத்தறி நெசவாளர்',
+    'Coastal Shrimp Hatchery Water Quality Tech': 'கடலோர இறால் குஞ்சு பொரிப்பக நீர் தர தொழில்நுட்ப வல்லுநர்',
+    'Raw Cashew Decortication & Roasting Sorter': 'முந்திரி வறுத்தல் மற்றும் உடைக்கும் தரம் பிரிப்பவர்',
+    'Limestone Quarry Mining Equipment Hand': 'சுண்ணாம்புக்கல் சுரங்க உபகரண உதவியாளர்',
+    'Cement Rotary Kiln Monitoring Operator': 'அரியலூர் சிமெண்ட் சுழல் உலை கண்காணிப்பு ஆபரேட்டர்',
+    'Automotive Sub-Assembly Line Fitter': 'மறைமலைநகர் கார் அசெம்பிளி லைன் பிட்டர்',
+    'IT Server Room Power & HVAC Tech': 'மகிந்திரா வேர்ல்ட் சிட்டி சர்வர் ரூம் பவர் & ஏசி டெக்னீஷியன்',
+    'Defense Vehicle Spare Quality Checker': 'ஆவடி ராணுவ வாகன உதிரிபாக தர பரிசோதகர்',
+    'Heavy Metal Forging Drop-Hammer Operator': 'கும்மிடிப்பூண்டி கனரக மெட்டல் போForging ஆபரேட்டர்',
+    'Tannery Drum Processing Operator': 'தோல் பதனிடும் மர டிரிரம் ஆபரேட்டர்',
+    'Shoe Upper Zig-Zag Sewing Tailor': 'ஆம்பூர் தோல் காலணி தையல் மாஸ்டர்',
+    'Railway Freight Transshipment Loader': 'ஜோலார்பேட்டை ரயில்வே சரக்கு டிரான்ஸ்ஷிப்மென்ட் உதவியாளர்',
+    'Industrial Boiler Water Chemistry Tech': 'தொழில்துறை பாய்லர் நீர் வேதியியல் தொழில்நுட்ப வல்லுநர்',
+    'Leather Shoe Upper Clicking & Skiving': 'தோல் காலணி மேல் பகுதி கட்டிங் & ஸ்கைவிங்',
+    'High Voltage Switchyard Electrician': 'உயர் மின்னழுத்த சுவிட்ச்யார்டு எலக்ட்ரீசியன்',
+    'Thermal Power Plant Maintenance Tech': 'அனல் மின் நிலைய பராமரிப்பு தொழில்நுட்ப வல்லுநர்',
+    'Lignite Bucket Wheel Excavator Operator': 'நிலக்கரி பக்கெட் வீல் அகழ்வாராய்ச்சி ஆபரேட்டர்',
+    'Plum & Pear Orchard Harvest Hand': 'பிளம்ஸ் மற்றும் பேரிக்காய் பறிக்கும் உதவியாளர்',
+    'Homemade Chocolate Tempering Artisan': 'கொடைக்கானல் சாக்லேட் தயாரிப்பாளர்',
+    'Timber Sawmill Machine Operator Helper': 'மரம் அறுக்கும் ஆலை இயந்திர உதவியாளர்',
+    'Coir Pith Block Press Machine Operator': 'தேங்காய் நார் கழிவு பிரிக் கட்டை பிரஸ் ஆபரேட்டர்',
+    'Tender Coconut Wholesale Sorting Specialist': 'பொள்ளாச்சி இளநீர் மட்டை உறித்தல் மற்றும் தரம் பிரித்தல்',
+    'Temple Border Silk Dhoti Handloom Weaver': 'கோவில் பட்டு வேட்டி கைத்தறி நெசவாளர்',
+    'Kumbakonam Degree Coffee Roaster & Barista': 'கும்பகோணம் டிகிரி காபி வறுக்கும் மாஸ்டர்',
+    'Brass Temple Lamp (Kuthuvilakku) Artisan': 'பித்தளை குத்துவிளக்கு மற்றும் மணி கைவினைஞர்',
+    'Chettinad Traditional Spice & Catering Master': 'செட்டிநாடு பாரம்பரிய சமையல் மற்றும் மசாலா மாஸ்டர்',
+    'Athangudi Handmade Floor Tile Artisan': 'ஆத்தங்குடி பாரம்பரிய தரை ஓடு கைவினைஞர்',
+    'Traditional Pottery & Musical Ghatam Maker': 'மானாமதுரை கடம் மற்றும் மண்பாண்ட கலைஞர்',
+    'Graphite Mining Processing Helper': 'கிராஃபைட் தாது மிதவை ஆலை உதவியாளர்',
+    'Seashell & Conch Handicraft Artisan': 'சங்கு மற்றும் சிப்பி கைவினைப் பொருட்கள் செதுக்குபவர்',
+    'Island Pilgrimage Transit Coordinator': 'ராமேஸ்வரம் தீவு யாத்ரீகர்கள் உதவி ஒருங்கிணைப்பாளர்',
+    'Solar PV Array Maintenance & Cleaning Tech': 'சூரிய மின் தகடு சுத்தம் மற்றும் பராமரிப்பு',
+    'Dry Fish Salt-Curing & Solar Drying Specialist': 'கருவாடு உப்பு பதனிடுதல் மற்றும் சோலார் உலர் கூட உதவியாளர்',
+    'Palm Jaggery (Karupatti) Boiling Master': 'பனை கருப்பட்டி காய்ச்சும் மாஸ்டர்',
+    'Banana Fiber Extraction Machine Hand': 'வாழை நார் பிரித்தெடுக்கும் இயந்திர ஆபரேட்டர்',
+    'Bodinayakanur Cardamom Auction Sorter': 'போடிநாயக்கனூர் ஏலக்காய் ஏல தரம் பிரிப்பவர்',
+    'Cumbum Valley Grape Harvesting Specialist': 'கம்பம் பள்ளத்தாக்கு திராட்சை அறுவடை நிபுணர்',
+    'Country Sugar (Nattu Sakkarai) Maker': 'நாட்டு சர்க்கரை தயாரிப்பாளர்',
+    'Cotton Ginning Saw Machine Operator': 'பருத்தி பஞ்சு பிரித்தெடுக்கும் இயந்திர ஆபரேட்டர்',
+    'Courtallam Season Tourism Assistant': 'குற்றாலம் சீசன் சுற்றுலா மற்றும் வழிகாட்டுதல்',
+    'Wholesale Grain Mandi Logistics Handler': 'தானிய மண்டி மூட்டை தூக்குதல் மற்றும் தைத்தல்',
+    'Oil Mill Expeller & Filter Press Operator': 'எண்ணெய் ஆலை எக்ஸ்பெல்லர் மற்றும் பில்டர் பிரஸ் ஆபரேட்டர்',
+    'Wholesale Red Chilli & Spice Grader': 'மொத்த மிளகாய் மற்றும் மசாலா தரம் பிரிப்பவர்',
+    'Sugar Mill Processing Operator': 'சர்க்கரை ஆலை செயலாக்க ஆபரேட்டர்',
+    'Raw Cashew Decorticator Machine Operator': 'பச்சை முந்திரி பருப்பு உடைக்கும் இயந்திர ஆபரேட்டர்',
+    'Arani Silk Saree Handloom Weaver': 'ஆரணி பட்டு சேலை கைத்தறி நெசவாளர்',
+    'Traditional Wood Ghani Oil Press Operator': 'பாரம்பரிய மரச்செக்கு நல்லெண்ணெய் ஆலை ஆபரேட்டர்',
+    'Girivalam Pilgrim Logistics Coordinator': 'கிரிவலம் பக்தர் சேவை மற்றும் அன்னதான ஒருங்கிணைப்பாளர்',
+    'Granite Gangsaw Block Slicing Operator': 'கிரானைட் கேங்சா கல் அறுக்கும் ஆபரேட்டர்',
+    'Floriculture Flower Sorter & Stringer': 'மலர் மாலை கட்டுதல் மற்றும் தரம் பிரித்தல்',
+    'Mango Pulp Industrial Canning Operator': 'மாம்பழ கூழ் கேனிங் மற்றும் பாஸ்டுரைசேஷன் ஆபரேட்டர்',
+    'Sericulture Silkworm Cocoon Rearing Hand': 'பட்டுப்புழு வளர்ப்பு மற்றும் கூடு அறுவடை உதவியாளர்',
+    'Marine Fish Salting & Sun-Curing Hand': 'கருவாடு உப்பு பதனிடுதல் மற்றும் உலர்த்துதல்',
+    'Cashew Decortication & Oven Roasting Operator': 'முந்திரி கொட்டை உடைத்தல் மற்றும் வறுக்கும் ஆபரேட்டர்',
+    'Lignite Mine Conveyor Maintenance Tech': 'நெய்வேலி நிலக்கரி கன்வேயர் பெல்ட் பராமரிப்பு',
+    'Harbor Fish Auction Sorting & Ice Packing': 'மீன்பிடி துறைமுக ஏல மீன் வகைப்படுத்துதல் மற்றும் ஐஸ் பேக்கிங்',
+    'Deep-Sea Trawler Net Rigging & Deck Hand': 'ஆழ்கடல் மீன்பிடி படகு வலை கட்டும் டெக் குழு',
+    'Deep Borewell Rig Machinery Operation': 'ஆழ்துளை கிணறு ரிக் இயந்திர ஆபரேட்டர்',
+    'Heavy Lorry Chassis & Cabin Welding Tech': 'லாரி சேஸ் மற்றும் கேபின் வெல்டர்',
+    'Commercial Poultry Egg Grading Specialist': 'வணிக கோழிப்பண்ணை முட்டை தரம் பிரிக்கும் நிபுணர்',
+    'Yarn Dyeing & Hydro-Extraction Operator': 'நூல் சாயம் ஏற்றுதல் மற்றும் நீர் நீக்கும் ஆபரேட்டர்',
+    'Commercial Bus Body MIG Welding Tech': 'பேருந்து பாடி பில்டிங் எம்ஐஜி வெல்டர்',
+    'Home Textile Jacquard Linen Weaving Tech': 'வீட்டு ஜவுளி ஜாக்கார்டு லினன் நெசவாளர்',
+    'Tannery Leather Buffing & Trimming Tech': 'தோல் பதனிடும் பஃபிங் மற்றும் டிரிம்மிங் டெக்னீஷியன்',
+    'Sirumalai Mountain Banana & Cardamom Sorter': 'சிறுமலை மலை வாழைப்பழம் மற்றும் ஏலக்காய் தரம் பிரிப்பவர்',
+    'Handcrafted Brass Lock Assembly Artisan': 'திண்டுக்கல் பித்தளை பூட்டு அசெம்பிளி கைவினைஞர்',
+    'Hill Vegetable & Fruit Cold Packing Hand': 'மலைத்தோட்ட காய்கறி மற்றும் பழ பேக்கிங்',
+    'Eucalyptus Essential Oil Distillation Worker': 'நீலகிரி தைல மர எண்ணெய் காய்ச்சி வடித்தல்',
+    'Orthodox Tea Plucking & Processing Hand': 'தேயிலை கொழுந்து பறித்தல் மற்றும் பதப்படுத்துதல்',
+    'Auto Sheet Metal Stamping Press Operator': 'வாகன உதிரிபாக ஸ்டாம்பிங் பிரஸ் ஆபரேட்டர்',
+    'SMT Electronics Component Inspection': 'SMT எலக்ட்ரானிக்ஸ் போர்டு ஆய்வாளர்',
+    'Kanchipuram Pure Silk Zari Weaving Master': 'காஞ்சிபுரம் பட்டு ஜரிகை நெசவு மாஸ்டர்',
+    'Floriculture Dutch Rose Export Harvest Hand': 'டச்சு ரோஜா மலர் ஏற்றுமதி அறுவடை உதவியாளர்',
+    'Precision Tool & Die Machine Operator': 'துல்லிய கருவி மற்றும் டை இயந்திர ஆபரேட்டர்',
+    'EV Battery Module Assembly & Spot Welding': 'மின்சார வாகன பேட்டரி மாட்யூல் ஸ்பாட் வெல்டர்',
+    'Fireworks Pyro-Mixing & Safety Fuse Setting': 'பட்டாசு வேதியியல் கலவை மற்றும் திரி பொருத்துதல்',
+    'Safety Matchbox & Carton Assembly Packaging Hand': 'தீப்பெட்டி & அட்டைப்பெட்டி பேக்கிங் உதவியாளர்',
+    'Offset Printing Machine Operator & Color Matcher': 'ஆஃப்செட் பிரிண்டிங் ஆபரேட்டர் & கலர் மேட்சர்',
+    'Cashew Kernel Peeling & Vacuum Grading Hand': 'முந்திரி பருப்பு உறித்தல் மற்றும் வெற்றிட பேக்கிங்',
+    'Rubber Latex Tapping & Smoking Tech': 'ரப்பர் பால் வடித்தல் & புகைத்தாள் தயாரிப்பு',
+    'Seafood Cold Storage Blast Freezer Packaging': 'கடல் உணவு பிளாஸ்ட் ப்ரீசர் பேக்கிங்',
+    'Marine Salt Pan Raking & Refining Hand': 'கடல் உப்பு பாத்தி வார்ப்பு மற்றும் சுத்திகரிப்பு',
+    'Harbor Crane Container Stevedore': 'துறைமுக கிரேன் கன்டெய்னர் ஸ்டீவ்டோர்',
+    'Thanjavur Art Plate Embossing Craftsman': 'தஞ்சாவூர் கலை தட்டு செதுக்கும் கைவினைஞர்',
+    'Bronze Chola Statue Casting & Engraving': 'சோழர் கால வெண்கல சிலை வார்ப்பு மற்றும் செதுக்குதல்',
+    'Paddy Combine Harvester Machine Operator': 'நெல் அறுவடை இயந்திர ஆபரேட்டர்',
+    'Powerloom Fabric Weaving & Maintenance': 'விசைத்தறி துணி நெசவு மற்றும் பராமரிப்பு',
+    'Bhavani Jamakkalam Carpet Handloom Artisan': 'பவானி ஜமக்காளம் கைத்தறி நெசவாளர்',
+    'Turmeric Grading & Moisture Testing Specialist': 'மஞ்சள் தரம் மற்றும் ஈரப்பதம் சோதனை நிபுணர்',
+    'Export Apparel Finishing & Packing': 'ஏற்றுமதி ஆடை பினிஷிங் மற்றும் பேக்கிங்',
+    'Fabric Screen Printing & Color Kitchen': 'துணி ரோட்டரி ஸ்கிரீன் பிரிண்டிங் & வண்ண கலவை',
+    'Knitwear Garment Flatlock Tailoring Master': 'பின்னலாடை ஃப்ளாட்லாக் தையல் மாஸ்டர்',
+    'Finished Leather Quality Inspection': 'முடிக்கப்பட்ட தோல் தர பரிசோதனை',
+    'Transit Freight Logistics': 'ரயில்வே சரக்கு போக்குவரத்து லாஜிஸ்டிக்ஸ்',
+    'Hospital Patient Desk Navigation': 'மருத்துவமனை நோயாளிகள் வழிகாட்டுதல்',
+    'Paper Mill Pulp Processing Operator': 'காகித ஆலை கூழ் தயாரிப்பு உதவியாளர்',
+    'Wind Turbine Blade Maintenance Tech': 'காற்றாலை பிளேடு ஆய்வு மற்றும் பராமரிப்பு',
+    'Tirunelveli Halwa Clarified Ghee Cooking Master': 'திருநெல்வேலி அல்வா நெய் தயாரிப்பு மாஸ்டர்',
+    'Silver Anklet Jewelry Polishing Artisan': 'வெள்ளி கொலுசு மெருகூட்டல் கைவினைஞர்',
+    'Sago & Starch Processing Operator': 'ஜவ்வரிசி மற்றும் மரவள்ளிக்கிழங்கு மாவு ஆலை ஆபரேட்டர்',
+    'Steel Furnace & Rolling Mill Operation': 'எஃகு உலை மற்றும் உருட்டாலை ஆபரேட்டர்',
+    'Railway Locomotive Mechanical Maintenance': 'ரயில்வே இன்ஜின் மெக்கானிக்கல் பராமரிப்பு',
+    'High-Pressure Boiler Tube TIG Welding': 'உயர் அழுத்த பாய்லர் டிஐஜி வெல்டர்',
+    'Sungudi Cotton Saree Wax Dyeing': 'சுங்குடி காட்டன் புடவை மெழுகு டை கலைஞர்',
+    'Madurai Malli Jasmine Stringing & Cold Chain': 'மதுரை மல்லி பூ கட்டுதல் மற்றும் குளிர்பதன பேக்கிங்',
+    'Foundry Sand Moulding & Core Casting': 'ஃபவுண்டரி மணல் மோல்டிங் & வார்ப்பு கலைஞர்',
+    'Textile Ring Spinning Maintenance': 'ஜவுளி மில் ரிங் ஸ்பின்னிங் பராமரிப்பு',
+    'Agricultural Pump Assembly Technician': 'விவசாய மற்றும் மோனோபிளாக் பம்ப் அசெம்பிளி டெக்னீஷியன்',
+    'Precision CNC Lathe & Milling Operator': 'துல்லிய CNC லேத் மற்றும் அரைக்கும் இயந்திர ஆபரேட்டர்',
+    'Container Logistics': 'கன்டெய்னர் லாஜிஸ்டிக்ஸ்',
     // App header & Global
-    appName: 'Skill2Work (स्किल2वर्क)',
-    regionTag: 'वेल्लोर क्षेत्र',
-    tagline: 'सही कौशल। सही काम। वास्तविक प्रभाव। • वेल्लोर',
+    appName: 'Talent2Task (टैलेंट2टास्क)',
+    regionTag: 'तमिलनाडु क्षेत्र',
+    tagline: 'सही कौशल। सही काम। वास्तविक प्रभाव। • तमिलनाडु',
     offlineStatus: 'ऑफ़लाइन SQLite मोड',
     sqlTerminal: 'SQLite कंसोल',
-    roleSeeker: 'नौकरी खोजकर्ता',
-    roleRecruiter: 'नियोक्ता / भर्तीकर्ता',
+    roleSeeker: 'जॉब सीकर (Job Seeker)',
+    roleRecruiter: 'जॉब रिक्रूटर (Job Recruiter)',
     switchRole: 'भूमिका बदलें',
     offlineAlert: 'आप ऑफ़लाइन हैं। आपके सहेजे गए कार्य और प्रोफ़ाइल स्थानीय रूप से उपलब्ध हैं।',
     marketDemand: 'बाज़ार मांग',
@@ -806,231 +1515,505 @@ export const TRANSLATIONS: Record<Language, TranslationDictionary> = {
     // Login Page
     loginWelcome: 'स्वागत है',
     loginHeading: 'जारी रखने के लिए साइन इन करें',
-    loginSubtitle: 'अपना खाता प्रकार चुनें और अपने कार्यक्षेत्र तक पहुंचें।',
+    loginSubtitle: 'तमिलनाडु भर में अपने कार्यक्षेत्र तक पहुंचें।',
     loginSeekerDesc: 'स्थानीय कार्य खोजें',
     loginRecruiterDesc: 'काम पोस्ट करें',
-    loginEmailLabel: 'ईमेल या मोबाइल नंबर',
-    loginEmailPlaceholder: 'you@example.com',
+    loginEmailLabel: 'मोबाइल फोन नंबर',
+    loginEmailPlaceholder: '98765 43210',
     loginPasswordLabel: 'पासवर्ड',
     loginPasswordPlaceholder: 'अपना पासवर्ड दर्ज करें',
     loginRememberMe: 'मुझे याद रखें',
     loginForgotPassword: 'पासवर्ड भूल गए?',
     loginSignInSeeker: 'नौकरी खोजकर्ता के रूप में साइन इन करें',
     loginSignInRecruiter: 'नियोक्ता के रूप में साइन इन करें',
-    loginNewPrompt: 'Skill2Work पर नए हैं?',
+    loginNewPrompt: 'Talent2Task पर नए हैं?',
     loginCreateAccount: 'खाता बनाएं',
     loginHeroTitle1: 'सही कौशल।',
     loginHeroTitle2: 'सही काम।',
     loginHeroTitleHighlight: 'वास्तविक प्रभाव।',
-    loginHeroDesc: 'भरोसेमंद स्थानीय गिग्स खोजें या अपने व्यवसाय के लिए कुशल लोग प्राप्त करें, सब एक ही स्थान पर।',
-    loginStatRadar: '3 किमी',
-    loginStatRadarSub: 'स्थानीय रडार',
+    loginHeroDesc: 'तमिलनाडु भर में नौकरियां खोजें या प्रतिभाशाली लोगों को नियुक्त करें।',
+    loginStatRadar: 'लाइव GPS',
+    loginStatRadarSub: 'तमिलनाडु रडार',
     loginStatOpp: '24/7',
     loginStatOppSub: 'अवसर',
     tabSignIn: 'साइन इन करें',
     tabCreateAccount: 'खाता बनाएं',
     newUserRegistration: 'नया उपयोगकर्ता पंजीकरण',
-    joinSkill2Work: 'Skill2Work वेल्लोर से जुड़ें',
-    createAccountSubtitle: 'वेल्लोर में 3 किमी के भीतर स्थानीय नौकरियों से जुड़ने या पोस्ट करने के लिए खाता बनाएं।',
+    joinTalent2Task: 'Talent2Task तमिलनाडु से जुड़ें',
+    createAccountSubtitle: 'तमिलनाडु में स्थानीय नौकरियों से जुड़ने या पोस्ट करने के लिए खाता बनाएं।',
     fullNameLabel: 'पूरा नाम',
     companyNameLabel: 'कंपनी / व्यवसाय का नाम',
     fullNamePlaceholder: 'उदा. कार्तिक राजा',
-    companyNamePlaceholder: 'उदा. वेल्लोर फ्रेश मार्ट',
-    mobilePhoneLabel: 'मोबाइल फोन नंबर',
-    mobilePhonePlaceholder: '+91 98401 23456',
-    ageLabel: 'आयु',
-    selectVelloreLocation: 'मुख्य वेल्लोर स्थान चुनें',
-    useGpsBtn: 'GPS का उपयोग करें',
-    skillsOffered: 'कौशल और सेवाएं',
-    availableTimeSlots: 'उपलब्ध समय',
-    createSeekerAccountBtn: 'नौकरी चाहने वाले का खाता बनाएं (DB में सहेजें)',
-    createRecruiterAccountBtn: 'नियोक्ता खाता बनाएं (DB में सहेजें)',
-    alreadyRegisteredPrompt: 'क्या आप पहले से पंजीकृत हैं?',
-    signInNowBtn: 'अब साइन इन करें',
-    orSignInRegistered: 'या पंजीकृत SQLite उपयोगकर्ता के रूप में साइन इन करें',
-    sqliteSavedFeature: 'SQLite WASM डेटाबेस में तुरंत सहेजा गया',
-    radar3kmFeature: 'स्थानीय 3 किमी रडार जॉब मैचिंग',
+  companyNamePlaceholder: 'उदा. तमिलनाडु फ्रेश मार्ट',
+  mobilePhoneLabel: 'मोबाइल फोन नंबर',
+  mobilePhonePlaceholder: '98765 43210',
+  ageLabel: 'आयु',
+  yearsOfExperienceLabel: 'कार्य अनुभव (वर्ष)',
+  cityLabel: 'शहर / क्षेत्र (तमिलनाडु)',
+  selectVelloreLocation: 'शहर / प्राथमिक स्थान चुनें',
+  selectCity: 'शहर चुनें',
+  useGpsBtn: 'लाइव जीपीएस',
+  gpsPromptTitle: 'सटीक नजदीकी नौकरियों के लिए लाइव जीपीएस सक्षम करें',
+  gpsPromptSubtitle: 'तमिलनाडु भर में निकटतम गिग्स खोजने के लिए स्थान पहुंच की अनुमति दें',
+  skillsOffered: 'कौशल और सेवाएं',
+  availableTimeSlots: 'उपलब्ध समय',
+  createSeekerAccountBtn: 'खाता बनाएं',
+  createRecruiterAccountBtn: 'खाता बनाएं',
+  alreadyRegisteredPrompt: 'क्या आप पहले से पंजीकृत हैं?',
+  signInNowBtn: 'अब साइन इन करें',
+  orSignInRegistered: '',
+  sqliteSavedFeature: 'SQLite डेटाबेस में सहेजा गया',
+  radar3kmFeature: 'लाइव जीपीएस और शहर रडार मैचिंग',
+  exploreGigsTab: 'गिग्स खोजें',
+  manageGigsTab: 'पोस्ट और प्रबंधित करें',
+  postGigTab: 'गिग पोस्ट करें',
 
-    // Seeker Tab
-    radarHeading: 'लाइव गिग रडार (वेल्लोर)',
-    radarSubtitle: 'अपने सबसे नज़दीकी पार्ट-टाइम और अस्थायी काम खोजें',
-    withinRadius: 'के दायरे में',
-    radiusSlider: 'दूरी फ़िल्टर',
-    allVellore: 'पूरा वेल्लोर',
-    matchScore: 'मैच',
-    claimJobBtn: 'काम स्वीकार करें',
-    claimedBadge: 'आपके द्वारा स्वीकृत',
-    claimedOtherBadge: 'आवंटित',
-    completedBadge: 'पूर्ण',
-    jobDetailsTitle: 'काम का विवरण और संपर्क',
-    directionsBtn: 'दिशा-निर्देश देखें',
-    callRecruiterBtn: 'कॉल करें',
-    whatsappRecruiterBtn: 'व्हाट्सएप',
-    myGigsTab: 'मेरे स्वीकृत कार्य',
-    allGigsTab: 'स्थानीय कार्य खोजें',
-    mapViewTab: 'मानचित्र रडार',
-    listViewTab: 'सूची दृश्य',
-    profileBtn: 'मेरी प्रोफाइल और GPS',
-    gigsFound: 'कार्य मिले',
-    changeLocation: 'बदलें',
-    sortBy: 'क्रमबद्ध:',
-    sortMatchScore: '🔥 मैच स्कोर',
-    sortDistance: '⚡ दूरी (नजदीक)',
-    sortHighestPay: '💰 सबसे अधिक भुगतान',
-    payout: 'भुगतान',
-    proximity: 'दूरी',
-    claiming: 'स्वीकार किया जा रहा है...',
-    overall: 'कुल',
-    noClaimedGigsTitle: 'अभी तक कोई कार्य स्वीकृत नहीं',
-    noClaimedGigsDesc: 'काटपाडी, सीएमसी और वेल्लोर में त्वरित प्रति घंटे के कार्यों को स्वीकार करने के लिए 3 किमी रडार का उपयोग करें।',
-    myClaimedSubtitle: 'अपने स्वीकृत कार्यों को ट्रैक करें और स्थानीय नियोक्ताओं से संपर्क करें',
+  // Seeker Tab
+  radarHeading: 'लाइव गिग रडार (तमिलनाडु)',
+  radarSubtitle: 'अपने सबसे नज़दीकी पार्ट-टाइम और अस्थायी काम खोजें',
+  withinRadius: 'के दायरे में',
+  radiusSlider: 'दूरी फ़िल्टर',
+  allVellore: 'पूरा तमिलनाडु',
+  matchScore: 'मैच',
+  claimJobBtn: 'काम स्वीकार करें',
+  claimedBadge: 'आपके द्वारा स्वीकृत',
+  claimedOtherBadge: 'आवंटित',
+  completedBadge: 'पूर्ण',
+  jobDetailsTitle: 'काम का विवरण और संपर्क',
+  directionsBtn: 'दिशा-निर्देश देखें',
+  directionsModalTitle: 'कार्य स्थल का मार्ग और दिशा-निर्देश',
+  directionsModalSubtitle: 'सटीक GPS नेविगेशन और लाइव रूट गाइड',
+  yourLocationLabel: 'आपका वर्तमान स्थान',
+  gigLocationLabel: 'रिक्रूटर का कार्य स्थल',
+  startNavigationBtn: 'Google Maps नेविगेशन शुरू करें',
+  openGoogleMapsBtn: 'Google Maps GPS',
+  openAppleMapsBtn: 'Apple Maps',
+  onMyWayBtn: 'मैं रास्ते में हूँ (On My Way)',
+  onMyWayAlertSent: 'रिक्रूटर को आपके पहुंचने का समय भेज दिया गया है!',
+  travelModeBike: 'बाइक / दोपहिया',
+  travelModeCar: 'कार / टैक्सी',
+  travelModeAuto: 'ऑटो / ट्रांजिट',
+  travelModeWalk: 'पैदल',
+  liveGpsAccurate: 'सटीक GPS स्थान सक्रिय',
+  estimatedArrival: 'अनुमानित यात्रा समय',
+  turnByTurnGuide: 'मार्गदर्शन विवरण',
+  readyToGoBanner: 'जाने के लिए तैयार हैं? कार्य स्थल के लिए टर्न-बाय-टर्न GPS दिशा-निर्देश प्राप्त करें',
+  callRecruiterBtn: 'कॉल करें',
+  whatsappRecruiterBtn: 'व्हाट्सएप',
+  myGigsTab: 'मेरे स्वीकृत कार्य',
+  allGigsTab: 'स्थानीय कार्य खोजें',
+  mapViewTab: 'मानचित्र रडार',
+  listViewTab: 'सूची दृश्य',
+  profileBtn: 'मेरी प्रोफाइल और GPS',
+  gigsFound: 'कार्य मिले',
+  changeLocation: 'बदलें',
+  sortBy: 'क्रमबद्ध:',
+  sortMatchScore: '🔥 मैच स्कोर',
+  sortDistance: '⚡ दूरी (नजदीक)',
+  sortHighestPay: '💰 सबसे अधिक भुगतान',
+  payout: 'भुगतान',
+  proximity: 'दूरी',
+  claiming: 'स्वीकार किया जा रहा है...',
+  overall: 'कुल',
+  noClaimedGigsTitle: 'अभी तक कोई कार्य स्वीकृत नहीं',
+  noClaimedGigsDesc: 'तमिलनाडु भर में त्वरित प्रति घंटे के कार्यों को स्वीकार करने के लिए लाइव रडार का उपयोग करें।',
+  myClaimedSubtitle: 'अपने स्वीकृत कार्यों को ट्रैक करें और स्थानीय नियोक्ताओं से संपर्क करें',
 
-    // Profile Modal
-    profileTitle: 'प्रोफ़ाइल और स्थान सेटिंग',
-    profileDesc: 'अपने 3 किमी मैच स्कोर को अधिकतम करने के लिए कौशल और समय चुनें',
-    fullName: 'पूरा नाम',
-    age: 'आयु',
-    phoneNumber: 'फ़ोन नंबर (व्हाट्सएप सहित)',
-    mySkills: 'मेरे कौशल (कौशल चुनें)',
-    skillsSelected: 'चुने गए',
-    addCustomSkillPlaceholder: 'अन्य कौशल जोड़ें (उदा. इलेक्ट्रीशियन, ट्यूशन)...',
-    myAvailability: 'उपलब्ध समय',
-    myLocation: 'वर्तमान वेल्लोर स्थान / GPS',
-    useCurrentGps: 'लाइव GPS प्राप्त करें',
-    locating: 'स्थान खोजा जा रहा है...',
-    selectLandmark: 'या वेल्लोर का प्रमुख स्थान चुनें',
-    saveProfileBtn: 'प्रोफ़ाइल सहेजें और रडार अपडेट करें',
+  // Profile Modal
+  profileTitle: 'प्रोफ़ाइल और स्थान सेटिंग',
+  profileDesc: 'अपने 3 किमी मैच स्कोर को अधिकतम करने के लिए कौशल और समय चुनें',
+  fullName: 'पूरा नाम',
+  age: 'आयु',
+  phoneNumber: 'फ़ोन नंबर (व्हाट्सएप सहित)',
+  mySkills: 'मेरे कौशल (कौशल चुनें)',
+  skillsSelected: 'चुने गए',
+  addCustomSkillPlaceholder: 'अन्य कौशल जोड़ें (उदा. इलेक्ट्रीशियन, ट्यूशन)...',
+  myAvailability: 'उपलब्ध समय',
+  myLocation: 'वर्तमान स्थान / GPS',
+  useCurrentGps: 'लाइव GPS प्राप्त करें',
+  locating: 'स्थान खोजा जा रहा है...',
+  selectLandmark: 'या तमिलनाडु का प्रमुख स्थान चुनें',
+  saveProfileBtn: 'प्रोफ़ाइल सहेजें और रडार अपडेट करें',
 
-    // Skill Gap & AI Recommendations
-    skillGapTitle: 'AI कौशल अंतराल और करियर अनुशंसाएं',
-    skillGapBadge: '+35% मैच स्कोर वृद्धि',
-    skillGapDesc: 'शीर्ष वेल्लोर गिग्स पर 90%+ मैच स्कोर प्राप्त करने के लिए इन उच्च-मांग वाले कौशलों को अपनी प्रोफ़ाइल में जोड़ें।',
-    addToMySkills: 'कौशल में जोड़ें',
-    neededInGigs: 'आवश्यकता:',
-    allStarTitle: 'उत्कृष्ट कौशल प्रोफ़ाइल!',
-    allStarDesc: 'आपकी प्रोफ़ाइल आस-पास के वेल्लोर गिग्स में मांगे गए 100% कौशलों को पूरा करती है।',
+  // Recruiter Profile Location Details
+  doorNoLabel: 'मकान / दुकान / फ्लैट संख्या',
+  doorNoPlaceholder: 'उदा. मकान सं. 14/B, दूसरी मंजिल, एपेक्स कॉम्प्लेक्स',
+  streetNameLabel: 'सड़क का नाम / गली / क्षेत्र',
+  streetNamePlaceholder: 'उदा. अन्ना सलाई, गांधी मार्ग, माउंट रोड',
+  cityOrDistrictLabel: 'शहर या जिला',
+  landmarkFieldLabel: 'प्रमुख लैंडमार्क (निकटतम केंद्र)',
+  landmarkFieldPlaceholder: 'उदा. बस स्टैंड के पास / बैंक के सामने',
+  workplaceAddressLabel: 'कार्यस्थल का पूरा पता (नेविगेशन के लिए)',
+  workplaceAddressHint: 'आपके गिग्स को स्वीकार करने वाले उम्मीदवारों को इस कार्यस्थल पते पर सीधा नेविगेशन मिलेगा।',
+  recruiterLocationTitle: 'कार्यस्थल और व्यावसायिक स्थान',
+  recruiterLocationSubtitle: 'सटीक नेविगेशन के लिए मकान नंबर, सड़क, लैंडमार्क और जिला प्रबंधित करें',
 
-    // Recruiter Portal
-    recruiterHeading: 'नियोक्ता प्रबंधन केंद्र',
-    recruiterSubtitle: 'काटपाडी, सीएमसी, वीआईटी और वेल्लोर में गिग्स पोस्ट करें',
-    activeRecruiter: 'सक्रिय नियोक्ता',
-    postNewGigBtn: 'नया काम पोस्ट करें',
-    postedGigsCount: 'सक्रिय पोस्ट किए गए कार्य',
-    statusOpen: 'स्वीकृति के लिए उपलब्ध',
-    statusClaimed: 'स्वीकृत / सौंपा गया',
-    statusCompleted: 'कार्य पूर्ण',
-    markCompletedBtn: 'पूर्ण के रूप में चिह्नित करें',
-    deleteGigBtn: 'काम हटाएं',
-    claimantDetails: 'कार्यकर्ता विवरण',
-    noClaimantYet: 'सहायक द्वारा स्वीकार किए जाने की प्रतीक्षा है',
-    rateClaimantBtn: 'रेटिंग और समीक्षा दें',
-    callClaimantBtn: 'कॉल करें',
-    whatsappClaimantBtn: 'व्हाट्सएप',
-    allGigsFilter: 'सभी कार्य',
-    metricTotalGigs: 'कुल कार्य',
-    metricOpenGigs: 'खुले (खोज जारी)',
-    metricAssignedGigs: 'सौंपे गए',
-    metricCompletedGigs: 'पूर्ण हुए',
-    noRecruiterGigs: 'आपने अभी तक कोई काम पोस्ट नहीं किया है। शुरू करने के लिए "नया काम पोस्ट करें" पर क्लिक करें!',
+  // Phase 35 — Payment Feature UI Terminology
+  payNowBtn: 'अब भुगतान करें',
+  paymentSuccessful: 'भुगतान सफल',
+  paymentReceived: 'भुगतान प्राप्त हुआ',
+  processingPayment: 'भुगतान संसाधित हो रहा है...',
+  paymentCompleted: 'भुगतान पूर्ण हुआ',
+  paidStatus: 'भुगतान किया',
 
-    // Post Gig Form
-    postModalTitle: 'स्थानीय वेल्लोर कार्य पोस्ट करें',
-    postModalSubtitle: 'वेल्लोर में तत्काल 3 किमी रडार खोज के साथ एक काम पोस्ट करें',
-    jobTitleLabel: 'कार्य शीर्षक',
-    jobTitlePlaceholder: 'उदा. डिलीवरी सहायक, स्टोर बिलिंग, इवेंट सहायता',
-    categoryLabel: 'श्रेणी',
-    descriptionLabel: 'विवरण और निर्देश',
-    descriptionPlaceholder: 'काम का विवरण, समय और मिलने का स्थान बताएं...',
-    payoutLabel: 'भुगतान राशि (₹)',
-    payoutUnitLabel: 'भुगतान प्रकार',
-    perHour: 'प्रति घंटा',
-    perTask: 'प्रति कार्य',
-    perShift: 'प्रति शिफ्ट',
-    perDay: 'प्रति दिन',
-    requiredSkillsLabel: 'आवश्यक कौशल',
-    landmarkAreaLabel: 'वेल्लोर क्षेत्र / लैंडमार्क',
-    clickMapInstruction: 'सटीक निर्देशांक सेट करने के लिए मानचित्र पर क्लिक करें या स्थान चुनें',
-    publishJobBtn: 'कार्य प्रकाशित करें (SQLite)',
+  // Skill Gap & AI Recommendations
+  skillGapTitle: 'AI कौशल अंतराल और करियर अनुशंसाएं',
+  skillGapBadge: '+35% मैच स्कोर वृद्धि',
+  skillGapDesc: 'शीर्ष तमिलनाडु गिग्स पर 90%+ मैच स्कोर प्राप्त करने के लिए इन उच्च-मांग वाले कौशलों को अपनी प्रोफ़ाइल में जोड़ें।',
+  addToMySkills: 'कौशल में जोड़ें',
+  neededInGigs: 'आवश्यकता:',
+  allStarTitle: 'उत्कृष्ट कौशल प्रोफ़ाइल!',
+  allStarDesc: 'आपकी प्रोफ़ाइल आस-पास के तमिलनाडु गिग्स में मांगे गए 100% कौशलों को पूरा करती है।',
 
-    // Categories
-    catDelivery: 'डिलीवरी और परिवहन',
-    catStoreHelper: 'दुकान सहायक और रिटेल',
-    catDataEntry: 'डेटा एंट्री और ऑफिस',
-    catEventHand: 'इवेंट और कैटरिंग सहायता',
-    catTutoring: 'ट्यूशन और शिक्षण सहायता',
-    catElectrical: 'तकनीकी और रखरखाव',
+  // Phase 4 — AI Skill Understanding & Skill-Gap Engine
+  skillGapCurrentSkills: 'वर्तमान कौशल',
+  skillGapRelatedSkills: 'संबंधित कौशल',
+  skillGapMissingSkills: 'अनुपस्थित उच्च-मांग कौशल',
+  skillGapUpskillingPath: 'अनुशंसित कौशल उन्नयन पथ',
+  skillGapCoverage: 'बाजार कौशल कवरेज',
+  skillGapUnlockedGigs: 'अनलॉक किए गए गिग्स',
+  skillGapPotentialBoost: 'संभावित वेतन वृद्धि',
+  skillGapWhyRecommended: 'यह क्यों अनुशंसित है',
+  skillGapStep: 'चरण',
+  skillGapAffinity: 'AI संबंध',
+  skillGapDemand: 'बाजार मांग',
+  skillGapBridge: 'ब्रिज कौशल',
+  skillGapHighDemandBadge: 'उच्च मांग',
+  skillGapHighPayBadge: 'शीर्ष कमाई',
+  skillGapExploreSteps: 'उन्नयन पथ',
+  skillGapAllStages: 'पूर्ण कौशल विश्लेषण',
+  skillGapAddSkillBtn: 'मेरे कौशल में जोड़ें',
 
-    // Filter & Search
-    searchPlaceholder: 'कार्य, कौशल या वेल्लोर स्थान खोजें...',
-    categoryFilter: 'श्रेणी',
-    allCategories: 'सभी श्रेणियां',
-    minPayFilter: 'न्यूनतम भुगतान (₹)',
-    noJobsFound: 'आपके 3 किमी दायरे में कोई काम नहीं मिला। रडार दूरी बढ़ाकर देखें!',
+  // Recruiter Portal
+  recruiterHeading: 'नियोक्ता प्रबंधन केंद्र',
+  recruiterSubtitle: 'तमिलनाडु भर के शहरों में गिग्स पोस्ट करें',
+  activeRecruiter: 'सक्रिय नियोक्ता',
+  postNewGigBtn: 'नया काम पोस्ट करें',
+  postedGigsCount: 'सक्रिय पोस्ट किए गए कार्य',
+  statusOpen: 'स्वीकृति के लिए उपलब्ध',
+  statusClaimed: 'स्वीकृत / सौंपा गया',
+  statusCompleted: 'कार्य पूर्ण',
+  markCompletedBtn: 'पूर्ण के रूप में चिह्नित करें',
+  deleteGigBtn: 'काम हटाएं',
+  claimantDetails: 'कार्यकर्ता विवरण',
+  noClaimantYet: 'सहायक द्वारा स्वीकार किए जाने की प्रतीक्षा है',
+  rateClaimantBtn: 'रेटिंग और समीक्षा दें',
+  callClaimantBtn: 'कॉल करें',
+  whatsappClaimantBtn: 'व्हाट्सएप',
+  allGigsFilter: 'सभी कार्य',
+  metricTotalGigs: 'कुल कार्य',
+  metricOpenGigs: 'खुले (खोज जारी)',
+  metricAssignedGigs: 'सौंपे गए',
+  metricCompletedGigs: 'पूर्ण हुए',
+  noRecruiterGigs: 'आपने अभी तक कोई काम पोस्ट नहीं किया है। शुरू करने के लिए "नया काम पोस्ट करें" पर क्लिक करें!',
 
-    // Match breakdown
-    breakdownTitle: 'मैच स्कोर विश्लेषण',
-    skillFit: 'कौशल मिलान',
-    distanceFit: 'दूरी मिलान',
-    scheduleFit: 'समय मिलान',
-    matchedSkillsLabel: 'मिले हुए कौशल',
-    missingSkillsLabel: 'अनुपस्थित कौशल',
+  // Post Gig Form
+  postModalTitle: 'स्थानीय तमिलनाडु कार्य पोस्ट करें',
+  postModalSubtitle: 'तमिलनाडु में तत्काल रडार खोज के साथ एक काम पोस्ट करें',
+  jobTitleLabel: 'कार्य शीर्षक',
+  jobTitlePlaceholder: 'उदा. डिलीवरी सहायक, स्टोर बिलिंग, इवेंट सहायता',
+  categoryLabel: 'श्रेणी',
+  descriptionLabel: 'विवरण और निर्देश',
+  descriptionPlaceholder: 'काम का विवरण, समय और मिलने का स्थान बताएं...',
+  payoutLabel: 'भुगतान राशि (₹)',
+  payoutUnitLabel: 'भुगतान प्रकार',
+  perHour: 'प्रति घंटा',
+  perTask: 'प्रति कार्य',
+  perShift: 'प्रति शिफ्ट',
+  perDay: 'प्रति दिन',
+  requiredSkillsLabel: 'आवश्यक कौशल',
+  landmarkAreaLabel: 'तमिलनाडु शहर / क्षेत्र / लैंडमार्क',
+  clickMapInstruction: 'सटीक निर्देशांक सेट करने के लिए मानचित्र पर क्लिक करें या तमिलनाडु स्थान चुनें',
+  publishJobBtn: 'कार्य प्रकाशित करें',
 
-    // Community Demand Modal
-    demandModalTitle: 'समुदाय मांग और कौशल रुझान',
-    demandModalSubtitle: 'काटपाडी, सीएमसी, वीआईटी और सतुवाचारी में रीयल-टाइम मांग विश्लेषण',
-    demandRegionBadge: 'वेल्लोर जिला रीयल-टाइम AI रडार',
-    topInDemandRole: 'सबसे अधिक मांग वाली भूमिका',
-    avgHourlyPayout: 'औसत प्रति घंटा भुगतान',
-    peakHiringWindows: 'सर्वोच्च भर्ती समय',
-    hourlyPaySub: 'उसी दिन तत्काल भुगतान',
-    peakHiringSub: 'लचीली पार्ट-टाइम शिफ्ट',
-    skillDemandRanking: 'वेल्लोर में मांग वाले कौशल और भुगतान दर',
-    openGigsSuffix: 'सक्रिय कार्य',
-    topAreaLabel: 'प्रमुख क्षेत्र:',
-    growthLabel: 'वृद्धि:',
+  // Categories
+  catDelivery: 'डिलीवरी और परिवहन',
+  catStoreHelper: 'दुकान सहायक और रिटेल',
+  catDataEntry: 'डेटा एंट्री और ऑफिस',
+  catEventHand: 'इवेंट और कैटरिंग सहायता',
+  catTutoring: 'ट्यूशन और शिक्षण सहायता',
+  catElectrical: 'तकनीकी और रखरखाव',
 
-    // Feedback Modal
-    feedbackTitle: 'अनुभव को रेट करें और समीक्षा दें',
-    feedbackSubtitle: 'सामुदायिक विश्वास बढ़ाने और भविष्य के AI मिलान को बेहतर बनाने में मदद करें',
-    ratingScoreLabel: 'कुल रेटिंग',
-    feedbackTagsLabel: 'क्या अच्छा रहा?',
-    commentLabel: 'विस्तृत प्रतिक्रिया / नोट्स',
-    commentPlaceholder: 'समय की पाबंदी, कौशल और कार्य गुणवत्ता के बारे में विवरण साझा करें...',
-    submitReviewBtn: 'प्रतिक्रिया सबमिट करें',
+  // Filter & Search
+  searchPlaceholder: 'कार्य, कौशल या तमिलनाडु स्थान खोजें...',
+  categoryFilter: 'श्रेणी',
+  allCategories: 'सभी श्रेणियां',
+  minPayFilter: 'न्यूनतम भुगतान (₹)',
+  noJobsFound: 'आपके 3 किमी दायरे में कोई काम नहीं मिला। रडार दूरी बढ़ाकर देखें!',
 
-    // SQLite Console Modal
-    sqlConsoleTitle: 'SQLite इन-ब्राउज़र WASM कंसोल',
-    sqlConsoleSubtitle: 'स्थानीय ऑफ़लाइन SQLite डेटाबेस पर सीधे क्वेरी निष्पादित करें',
-    sqlEngineBadge: 'SQLite 3 इंजन सक्रिय',
-    presetQueriesLabel: 'त्वरित SQL प्रीसेट',
-    executeBtn: 'क्वेरी निष्पादित करें',
-    exportBtn: 'डेटाबेस निर्यात करें',
-    resetBtn: 'डेटा रीसेट करें',
-    execTime: 'निष्पादन समय',
-    rowsReturned: 'पंक्तियाँ प्राप्त हुईं',
-    noResults: 'क्वेरी सफलतापूर्वक निष्पादित हुई, कोई पंक्ति वापस नहीं आई।',
+  // Match breakdown
+  breakdownTitle: 'मैच स्कोर विश्लेषण',
+  skillFit: 'कौशल मिलान',
+  distanceFit: 'दूरी मिलान',
+  scheduleFit: 'समय मिलान',
+  matchedSkillsLabel: 'मिले हुए कौशल',
+  missingSkillsLabel: 'अनुपस्थित कौशल',
 
-    // Footer & Toasts
-    footerTagline: 'सही कौशल। सही काम। वास्तविक प्रभाव।',
-    footerEngineDesc: 'हाइपर-लोकल गिग डिस्कवरी इंजन — वेल्लोर जिला, तमिलनाडु',
-    toastClaimSuccess: '🎉 काम स्वीकार कर लिया गया! नियोक्ता को संपर्क जानकारी भेज दी गई है।',
-    toastStatusUpdated: 'स्थिति को अपडेट किया गया:',
-    toastJobDeleted: 'काम SQLite से हटा दिया गया।',
-    toastJobPosted: '🚀 नया वेल्लोर गिग पोस्ट किया गया और 3 किमी रडार पर लाइव है!',
-    toastProfileUpdated: '✅ प्रोफ़ाइल और GPS अपडेट किया गया।',
-    toastSkillAdded: 'जोड़ा गया! AI मैच स्कोर की पुनर्गणना की गई।',
-    toastReviewSaved: '⭐ रेटिंग सहेजी गई! सामुदायिक विश्वास अपडेट किया गया।'
-  },
+  // Hybrid AI Matching & Explainability
+  whyRecommended: 'यह मैच क्यों अनुशंसित है?',
+  hybridMatchBreakdown: 'हाइब्रिड एआई मैच विश्लेषण',
+  skillSimilarityLabel: 'कौशल समानता',
+  distanceFactorLabel: 'दूरी',
+  availabilityFactorLabel: 'उपलब्धता',
+  experienceFactorLabel: 'कार्य अनुभव',
+  localDemandFactorLabel: 'स्थानीय मांग',
+  reliabilityFactorLabel: 'विश्वसनीयता',
+
+  // Phase 3 — NLP Requirement Understanding
+  aiRequirementAssistant: 'एआई आवश्यकता सहायक',
+  aiFastDraftTitle: 'प्राकृतिक भाषा में त्वरित ड्राफ्ट',
+  aiInputPlaceholder: 'उदा: मदुरै के पास कल शाम एक अनुभवी एसी तकनीशियन की आवश्यकता है',
+  extractWithAiBtn: 'एआई से विश्लेषण करें',
+  analyzingWithAi: 'विश्लेषण हो रहा है...',
+  extractedDetailsTitle: 'एआई द्वारा प्राप्त विवरण — जांचें और संपादित करें',
+  extractedDetailsSubtitle: 'फॉर्म में लागू करने से पहले विवरण की पुष्टि करें',
+  applyExtractedBtn: 'विवरण लागू करें',
+  dismissExtractedBtn: 'हटाएं',
+  detectedIntent: 'इरादा',
+  hiringWorkerIntent: 'काम पर रखना',
+  detectedExperience: 'अनुभव',
+  detectedShift: 'समय / शिफ्ट',
+  detectedLocation: 'स्थान',
+  detectedPayout: 'भुगतान',
+  missingInformationAlert: 'ध्यान दें',
+  confirmBeforePostNotice: 'आपकी पुष्टि के बिना कोई भी एआई जानकारी पोस्ट नहीं की जाएगी।',
+  aiSearchParsed: 'एआई प्राकृतिक भाषा खोज',
+    // Phase 6 — Voice & Multilingual AI
+    voiceSearchBtn: 'वॉयस खोज',
+    voiceFastDraftBtn: 'आवश्यकता बोलें',
+    voiceListening: 'सुन रहा है... अब बोलें',
+    voiceListeningPrompt: 'तमिल, तेलुगु, हिंदी या अंग्रेजी में बोलें या टाइप करें',
+    voicePermissionDenied: 'माइक्रोफोन एक्सेस अवरुद्ध',
+    voicePermissionHelp: 'कृपया ब्राउज़र सेटिंग्स में माइक्रोफ़ोन अनुमति सक्षम करें या नमूना वॉयस आज़माएं।',
+    voiceUnsupported: 'स्पीच रिकॉग्निशन असमर्थित',
+    voiceUnsupportedHelp: 'आपका ब्राउज़र Web Speech API का समर्थन नहीं करता है। कृपया टाइप करें।',
+    voiceSamplePhrases: 'वॉयस AI नमूना इनपुट',
+    voiceTrySample: 'नमूना वॉयस आज़माएं',
+    voiceProcessing: 'वॉयस प्रोसेस हो रहा है...',
+    aiMultilingualActive: 'AI बहुभाषी और वॉयस सक्रिय',
+    aiLanguageDetected: 'भाषा पहचानी गई',
+    // Phase 7 — Trust & Safety
+    trustSafetyTitle: 'विश्वास और सुरक्षा मूल्यांकन',
+    trustPotentialRisk: 'संभावित जोखिम का पता चला',
+    trustVerifiedRecruiter: 'सत्यापित नियोक्ता',
+    trustStandardVerification: 'मानक सत्यापन',
+    trustVerifiedListing: 'सत्यापित सूची',
+    trustNewRecruiterNote: 'नया नियोक्ता खाता — मानक सुरक्षा जांच पूरी हुई। काम पूरा होने के साथ रेटिंग बढ़ती है।',
+    trustReportJobBtn: 'रिपोर्ट करें',
+    trustReportModalTitle: 'जॉब पोस्टिंग की रिपोर्ट करें',
+    trustReportSuccessTitle: 'समीक्षा के लिए रिपोर्ट दर्ज की गई',
+    trustNoAutoBanNotice: 'दुरुपयोग को रोकने के लिए, केवल रिपोर्ट या AI के आधार पर उपयोगकर्ताओं को कभी भी स्वचालित रूप से प्रतिबंधित नहीं किया जाता है।',
+
+    // Phase 8 — Reliability & Continuous Feedback
+    workerReliabilityTitle: 'कार्यकर्ता विश्वसनीयता और प्रतिष्ठा',
+    reliabilityScoreLabel: 'विश्वसनीयता स्कोर',
+    reliabilityTierLabel: 'प्रतिष्ठा स्तर',
+    completionRateLabel: 'कार्य समापन दर',
+    continuousFeedbackLabel: 'निरंतर प्रतिक्रिया चक्र',
+    verifiedReviewsLabel: 'सत्यापित समीक्षाएं',
+    newWorkerBaselineNote: 'नए कार्यकर्ता के लिए निष्पक्ष आधार अंक लागू — Talent2Task पर सत्यापित इतिहास का निर्माण।',
+
+  // Community Demand Modal
+  demandModalTitle: 'समुदाय मांग और कौशल रुझान',
+  demandModalSubtitle: 'चेन्नई, कोयंबटूर, मदुरै, त्रिची और तमिलनाडु भर में रीयल-टाइम मांग विश्लेषण',
+  demandRegionBadge: 'तमिलनाडु रीयल-टाइम AI रडार',
+  topInDemandRole: 'सबसे अधिक मांग वाली भूमिका',
+  avgHourlyPayout: 'औसत प्रति घंटा भुगतान',
+  peakHiringWindows: 'सर्वोच्च भर्ती समय',
+  hourlyPaySub: 'उसी दिन तत्काल भुगतान',
+  peakHiringSub: 'लचीली पार्ट-टाइम शिफ्ट',
+  skillDemandRanking: 'तमिलनाडु में मांग वाले कौशल और भुगतान दर',
+  openGigsSuffix: 'सक्रिय कार्य',
+  topAreaLabel: 'प्रमुख क्षेत्र:',
+  growthLabel: 'वृद्धि:',
+    demandActualTitle: 'वर्तमान स्थानीय मांग',
+    demandPredictedTitle: 'पूर्वानुमानित मांग',
+    demandLevelHigh: 'उच्च',
+    demandLevelMedium: 'मध्यम',
+    demandLevelLow: 'कम',
+    demandTrendRising: 'बढ़ता हुआ',
+    demandTrendStable: 'स्थिर',
+    demandTrendSoftening: 'घटता हुआ',
+    demandInsufficientData: 'अपर्याप्त ऐतिहासिक डेटा',
+    demandAttributionTitle: 'डेटा स्रोत और एमएल मॉडल पारदर्शिता',
+    demandSelectRegion: 'जिला / क्षेत्र चुनें',
+    demandActiveGigsLabel: 'सक्रिय काम',
+    demandCompletedGigsLabel: 'पूर्ण किए गए काम',
+    demandModelArchitecture: 'रैंडम फ़ॉरेस्ट एन्सेम्बल (10 डिसीजन ट्री)',
+    demandWhyThisPrediction: 'डेटा और भविष्यवाणी विवरण',
+    demandFilterGigsBtn: 'नौकरियां देखें',
+    demandAllTamilNadu: 'पूरा तमिलनाडु (राज्यव्यापी)',
+
+  // Feedback Modal
+  feedbackTitle: 'अनुभव को रेट करें और समीक्षा दें',
+  feedbackSubtitle: 'सामुदायिक विश्वास बढ़ाने और भविष्य के AI मिलान को बेहतर बनाने में मदद करें',
+  ratingScoreLabel: 'कुल रेटिंग',
+  feedbackTagsLabel: 'क्या अच्छा रहा?',
+  commentLabel: 'विस्तृत प्रतिक्रिया / नोट्स',
+  commentPlaceholder: 'समय की पाबंदी, कौशल और कार्य गुणवत्ता के बारे में विवरण साझा करें...',
+  submitReviewBtn: 'प्रतिक्रिया सबमिट करें',
+
+  // SQLite Console Modal
+  sqlConsoleTitle: 'SQLite इन-ब्राउज़र WASM कंसोल',
+  sqlConsoleSubtitle: 'स्थानीय ऑफ़लाइन SQLite डेटाबेस पर सीधे क्वेरी निष्पादित करें',
+  sqlEngineBadge: 'SQLite 3 इंजन सक्रिय',
+  presetQueriesLabel: 'त्वरित SQL प्रीसेट',
+  executeBtn: 'क्वेरी निष्पादित करें',
+  exportBtn: 'डेटाबेस निर्यात करें',
+  resetBtn: 'डेटा रीसेट करें',
+  execTime: 'निष्पादन समय',
+  rowsReturned: 'पंक्तियाँ प्राप्त हुईं',
+  noResults: 'क्वेरी सफलतापूर्वक निष्पादित हुई, कोई पंक्ति वापस नहीं आई।',
+
+  // Footer & Toasts
+  footerTagline: 'सही प्रतिभा। सही काम। वास्तविक प्रभाव।',
+  footerEngineDesc: 'हाइपर-लोकल गिग डिस्कवरी इंजन — तमिलनाडु',
+  toastClaimSuccess: '🎉 काम स्वीकार कर लिया गया! नियोक्ता को संपर्क जानकारी भेज दी गई है।',
+  toastStatusUpdated: 'स्थिति को अपडेट किया गया:',
+  toastJobDeleted: 'काम हटा दिया गया।',
+  toastJobPosted: '🚀 नया गिग पोस्ट किया गया और तमिलनाडु रडार पर लाइव है!',
+  toastProfileUpdated: '✅ प्रोफ़ाइल और GPS अपडेट किया गया।',
+  toastSkillAdded: 'जोड़ा गया! AI मैच स्कोर की पुनर्गणना की गई।',
+  toastReviewSaved: '⭐ रेटिंग सहेजी गई! सामुदायिक विश्वास अपडेट किया गया।',
+    nextStepBtn: 'आगे बढ़ें',
+    backStepBtn: 'वापस',
+    stepAccountInfo: '1. खाता विवरण',
+    stepLocationExperience: '2. अनुभव और स्थान',
+    stepLocationDetails: '2. स्थान विवरण',
+    selectRoleLabel: 'अपनी भूमिका चुनें',
+    phoneExact10DigitsError: 'कृपया ठीक 10 अंकों का मोबाइल नंबर दर्ज करें।',
+    passwordRegexError: 'पासवर्ड 8-12 वर्ण लंबा होना चाहिए और इसमें कम से कम एक संख्या और एक विशेष वर्ण होना चाहिए।',
+    passwordRegexHint: '8-12 वर्ण, कम से कम 1 संख्या और 1 विशेष वर्ण'
+},
 
   te: {
+    'Turmeric Root Sun-Drying & Bagging Hand': 'மஞ்சள் கிழங்கு உலர்த்துதல் மற்றும் மூட்டை கட்டுதல்',
+    'Parboiled Rice Huller Mill Operator': 'புழுங்கல் அரிசி ஆலை ஹல்லர் ஆபரேட்டர்',
+    'Sugar Mill Sugarcane Crusher Feeder': 'கள்ளக்குறிச்சி சர்க்கரை ஆலை கரும்பு அரவை ஆபரேட்டர்',
+    'Shallot (Small Onion) Grading Sorter': 'சின்ன வெங்காயம் தரம் பிரித்து பேக்கிங் செய்பவர்',
+    'Gypsum Mineral Processing Helper': 'ஜிப்சம் கனிம செயலாக்க உதவியாளர்',
+    'Hybrid Maize Seed Sorting Specialist': 'பெரம்பலூர் மக்காச்சோள விதை தரம் பிரிக்கும் நிபுணர்',
+    'Groundnut Decorticator & Oil Extraction Operator': 'மணப்பாறை நிலக்கடலை எண்ணெய் ஆலை எக்ஸ்பெல்லர்',
+    'Synthetic Gemstone Faceting & Lapidary Polisher': 'செயற்கை வைர மற்றும் ரத்தின பாலிஷிங் கலைஞர்',
+    'Irrigation Canal Sluice Gate Maintenance Hand': 'பாசன கால்வாய் மதகு பராமரிப்பு உதவியாளர்',
+    'Tiruvarur Chariot Silk Border Weaving Artisan': 'திருவாரூர் ஆழித்தேர் பட்டு பார்டர் நெசவு கலைஞர்',
+    'Certified Paddy Seed Moisture & Purity Sorter': 'சான்றளிக்கப்பட்ட நெல் விதை ஈரப்பதம் மற்றும் தூய்மை பரிசோதகர்',
+    'Traditional Cotton Dhoti Handloom Weaver': 'பாரம்பரிய காட்டன் வேட்டி கைத்தறி நெசவாளர்',
+    'Coastal Shrimp Hatchery Water Quality Tech': 'கடலோர இறால் குஞ்சு பொரிப்பக நீர் தர தொழில்நுட்ப வல்லுநர்',
+    'Raw Cashew Decortication & Roasting Sorter': 'முந்திரி வறுத்தல் மற்றும் உடைக்கும் தரம் பிரிப்பவர்',
+    'Limestone Quarry Mining Equipment Hand': 'சுண்ணாம்புக்கல் சுரங்க உபகரண உதவியாளர்',
+    'Cement Rotary Kiln Monitoring Operator': 'அரியலூர் சிமெண்ட் சுழல் உலை கண்காணிப்பு ஆபரேட்டர்',
+    'Automotive Sub-Assembly Line Fitter': 'மறைமலைநகர் கார் அசெம்பிளி லைன் பிட்டர்',
+    'IT Server Room Power & HVAC Tech': 'மகிந்திரா வேர்ல்ட் சிட்டி சர்வர் ரூம் பவர் & ஏசி டெக்னீஷியன்',
+    'Defense Vehicle Spare Quality Checker': 'ஆவடி ராணுவ வாகன உதிரிபாக தர பரிசோதகர்',
+    'Heavy Metal Forging Drop-Hammer Operator': 'கும்மிடிப்பூண்டி கனரக மெட்டல் போForging ஆபரேட்டர்',
+    'Tannery Drum Processing Operator': 'தோல் பதனிடும் மர டிரிரம் ஆபரேட்டர்',
+    'Shoe Upper Zig-Zag Sewing Tailor': 'ஆம்பூர் தோல் காலணி தையல் மாஸ்டர்',
+    'Railway Freight Transshipment Loader': 'ஜோலார்பேட்டை ரயில்வே சரக்கு டிரான்ஸ்ஷிப்மென்ட் உதவியாளர்',
+    'Industrial Boiler Water Chemistry Tech': 'தொழில்துறை பாய்லர் நீர் வேதியியல் தொழில்நுட்ப வல்லுநர்',
+    'Leather Shoe Upper Clicking & Skiving': 'தோல் காலணி மேல் பகுதி கட்டிங் & ஸ்கைவிங்',
+    'High Voltage Switchyard Electrician': 'உயர் மின்னழுத்த சுவிட்ச்யார்டு எலக்ட்ரீசியன்',
+    'Thermal Power Plant Maintenance Tech': 'அனல் மின் நிலைய பராமரிப்பு தொழில்நுட்ப வல்லுநர்',
+    'Lignite Bucket Wheel Excavator Operator': 'நிலக்கரி பக்கெட் வீல் அகழ்வாராய்ச்சி ஆபரேட்டர்',
+    'Plum & Pear Orchard Harvest Hand': 'பிளம்ஸ் மற்றும் பேரிக்காய் பறிக்கும் உதவியாளர்',
+    'Homemade Chocolate Tempering Artisan': 'கொடைக்கானல் சாக்லேட் தயாரிப்பாளர்',
+    'Timber Sawmill Machine Operator Helper': 'மரம் அறுக்கும் ஆலை இயந்திர உதவியாளர்',
+    'Coir Pith Block Press Machine Operator': 'தேங்காய் நார் கழிவு பிரிக் கட்டை பிரஸ் ஆபரேட்டர்',
+    'Tender Coconut Wholesale Sorting Specialist': 'பொள்ளாச்சி இளநீர் மட்டை உறித்தல் மற்றும் தரம் பிரித்தல்',
+    'Temple Border Silk Dhoti Handloom Weaver': 'கோவில் பட்டு வேட்டி கைத்தறி நெசவாளர்',
+    'Kumbakonam Degree Coffee Roaster & Barista': 'கும்பகோணம் டிகிரி காபி வறுக்கும் மாஸ்டர்',
+    'Brass Temple Lamp (Kuthuvilakku) Artisan': 'பித்தளை குத்துவிளக்கு மற்றும் மணி கைவினைஞர்',
+    'Chettinad Traditional Spice & Catering Master': 'செட்டிநாடு பாரம்பரிய சமையல் மற்றும் மசாலா மாஸ்டர்',
+    'Athangudi Handmade Floor Tile Artisan': 'ஆத்தங்குடி பாரம்பரிய தரை ஓடு கைவினைஞர்',
+    'Traditional Pottery & Musical Ghatam Maker': 'மானாமதுரை கடம் மற்றும் மண்பாண்ட கலைஞர்',
+    'Graphite Mining Processing Helper': 'கிராஃபைட் தாது மிதவை ஆலை உதவியாளர்',
+    'Seashell & Conch Handicraft Artisan': 'சங்கு மற்றும் சிப்பி கைவினைப் பொருட்கள் செதுக்குபவர்',
+    'Island Pilgrimage Transit Coordinator': 'ராமேஸ்வரம் தீவு யாத்ரீகர்கள் உதவி ஒருங்கிணைப்பாளர்',
+    'Solar PV Array Maintenance & Cleaning Tech': 'சூரிய மின் தகடு சுத்தம் மற்றும் பராமரிப்பு',
+    'Dry Fish Salt-Curing & Solar Drying Specialist': 'கருவாடு உப்பு பதனிடுதல் மற்றும் சோலார் உலர் கூட உதவியாளர்',
+    'Palm Jaggery (Karupatti) Boiling Master': 'பனை கருப்பட்டி காய்ச்சும் மாஸ்டர்',
+    'Banana Fiber Extraction Machine Hand': 'வாழை நார் பிரித்தெடுக்கும் இயந்திர ஆபரேட்டர்',
+    'Bodinayakanur Cardamom Auction Sorter': 'போடிநாயக்கனூர் ஏலக்காய் ஏல தரம் பிரிப்பவர்',
+    'Cumbum Valley Grape Harvesting Specialist': 'கம்பம் பள்ளத்தாக்கு திராட்சை அறுவடை நிபுணர்',
+    'Country Sugar (Nattu Sakkarai) Maker': 'நாட்டு சர்க்கரை தயாரிப்பாளர்',
+    'Cotton Ginning Saw Machine Operator': 'பருத்தி பஞ்சு பிரித்தெடுக்கும் இயந்திர ஆபரேட்டர்',
+    'Courtallam Season Tourism Assistant': 'குற்றாலம் சீசன் சுற்றுலா மற்றும் வழிகாட்டுதல்',
+    'Wholesale Grain Mandi Logistics Handler': 'தானிய மண்டி மூட்டை தூக்குதல் மற்றும் தைத்தல்',
+    'Oil Mill Expeller & Filter Press Operator': 'எண்ணெய் ஆலை எக்ஸ்பெல்லர் மற்றும் பில்டர் பிரஸ் ஆபரேட்டர்',
+    'Wholesale Red Chilli & Spice Grader': 'மொத்த மிளகாய் மற்றும் மசாலா தரம் பிரிப்பவர்',
+    'Sugar Mill Processing Operator': 'சர்க்கரை ஆலை செயலாக்க ஆபரேட்டர்',
+    'Raw Cashew Decorticator Machine Operator': 'பச்சை முந்திரி பருப்பு உடைக்கும் இயந்திர ஆபரேட்டர்',
+    'Arani Silk Saree Handloom Weaver': 'ஆரணி பட்டு சேலை கைத்தறி நெசவாளர்',
+    'Traditional Wood Ghani Oil Press Operator': 'பாரம்பரிய மரச்செக்கு நல்லெண்ணெய் ஆலை ஆபரேட்டர்',
+    'Girivalam Pilgrim Logistics Coordinator': 'கிரிவலம் பக்தர் சேவை மற்றும் அன்னதான ஒருங்கிணைப்பாளர்',
+    'Granite Gangsaw Block Slicing Operator': 'கிரானைட் கேங்சா கல் அறுக்கும் ஆபரேட்டர்',
+    'Floriculture Flower Sorter & Stringer': 'மலர் மாலை கட்டுதல் மற்றும் தரம் பிரித்தல்',
+    'Mango Pulp Industrial Canning Operator': 'மாம்பழ கூழ் கேனிங் மற்றும் பாஸ்டுரைசேஷன் ஆபரேட்டர்',
+    'Sericulture Silkworm Cocoon Rearing Hand': 'பட்டுப்புழு வளர்ப்பு மற்றும் கூடு அறுவடை உதவியாளர்',
+    'Marine Fish Salting & Sun-Curing Hand': 'கருவாடு உப்பு பதனிடுதல் மற்றும் உலர்த்துதல்',
+    'Cashew Decortication & Oven Roasting Operator': 'முந்திரி கொட்டை உடைத்தல் மற்றும் வறுக்கும் ஆபரேட்டர்',
+    'Lignite Mine Conveyor Maintenance Tech': 'நெய்வேலி நிலக்கரி கன்வேயர் பெல்ட் பராமரிப்பு',
+    'Harbor Fish Auction Sorting & Ice Packing': 'மீன்பிடி துறைமுக ஏல மீன் வகைப்படுத்துதல் மற்றும் ஐஸ் பேக்கிங்',
+    'Deep-Sea Trawler Net Rigging & Deck Hand': 'ஆழ்கடல் மீன்பிடி படகு வலை கட்டும் டெக் குழு',
+    'Deep Borewell Rig Machinery Operation': 'ஆழ்துளை கிணறு ரிக் இயந்திர ஆபரேட்டர்',
+    'Heavy Lorry Chassis & Cabin Welding Tech': 'லாரி சேஸ் மற்றும் கேபின் வெல்டர்',
+    'Commercial Poultry Egg Grading Specialist': 'வணிக கோழிப்பண்ணை முட்டை தரம் பிரிக்கும் நிபுணர்',
+    'Yarn Dyeing & Hydro-Extraction Operator': 'நூல் சாயம் ஏற்றுதல் மற்றும் நீர் நீக்கும் ஆபரேட்டர்',
+    'Commercial Bus Body MIG Welding Tech': 'பேருந்து பாடி பில்டிங் எம்ஐஜி வெல்டர்',
+    'Home Textile Jacquard Linen Weaving Tech': 'வீட்டு ஜவுளி ஜாக்கார்டு லினன் நெசவாளர்',
+    'Tannery Leather Buffing & Trimming Tech': 'தோல் பதனிடும் பஃபிங் மற்றும் டிரிம்மிங் டெக்னீஷியன்',
+    'Sirumalai Mountain Banana & Cardamom Sorter': 'சிறுமலை மலை வாழைப்பழம் மற்றும் ஏலக்காய் தரம் பிரிப்பவர்',
+    'Handcrafted Brass Lock Assembly Artisan': 'திண்டுக்கல் பித்தளை பூட்டு அசெம்பிளி கைவினைஞர்',
+    'Hill Vegetable & Fruit Cold Packing Hand': 'மலைத்தோட்ட காய்கறி மற்றும் பழ பேக்கிங்',
+    'Eucalyptus Essential Oil Distillation Worker': 'நீலகிரி தைல மர எண்ணெய் காய்ச்சி வடித்தல்',
+    'Orthodox Tea Plucking & Processing Hand': 'தேயிலை கொழுந்து பறித்தல் மற்றும் பதப்படுத்துதல்',
+    'Auto Sheet Metal Stamping Press Operator': 'வாகன உதிரிபாக ஸ்டாம்பிங் பிரஸ் ஆபரேட்டர்',
+    'SMT Electronics Component Inspection': 'SMT எலக்ட்ரானிக்ஸ் போர்டு ஆய்வாளர்',
+    'Kanchipuram Pure Silk Zari Weaving Master': 'காஞ்சிபுரம் பட்டு ஜரிகை நெசவு மாஸ்டர்',
+    'Floriculture Dutch Rose Export Harvest Hand': 'டச்சு ரோஜா மலர் ஏற்றுமதி அறுவடை உதவியாளர்',
+    'Precision Tool & Die Machine Operator': 'துல்லிய கருவி மற்றும் டை இயந்திர ஆபரேட்டர்',
+    'EV Battery Module Assembly & Spot Welding': 'மின்சார வாகன பேட்டரி மாட்யூல் ஸ்பாட் வெல்டர்',
+    'Fireworks Pyro-Mixing & Safety Fuse Setting': 'பட்டாசு வேதியியல் கலவை மற்றும் திரி பொருத்துதல்',
+    'Cashew Kernel Peeling & Vacuum Grading Hand': 'முந்திரி பருப்பு உறித்தல் மற்றும் வெற்றிட பேக்கிங்',
+    'Rubber Latex Tapping & Smoking Tech': 'ரப்பர் பால் வடித்தல் & புகைத்தாள் தயாரிப்பு',
+    'Seafood Cold Storage Blast Freezer Packaging': 'கடல் உணவு பிளாஸ்ட் ப்ரீசர் பேக்கிங்',
+    'Marine Salt Pan Raking & Refining Hand': 'கடல் உப்பு பாத்தி வார்ப்பு மற்றும் சுத்திகரிப்பு',
+    'Harbor Crane Container Stevedore': 'துறைமுக கிரேன் கன்டெய்னர் ஸ்டீவ்டோர்',
+    'Thanjavur Art Plate Embossing Craftsman': 'தஞ்சாவூர் கலை தட்டு செதுக்கும் கைவினைஞர்',
+    'Bronze Chola Statue Casting & Engraving': 'சோழர் கால வெண்கல சிலை வார்ப்பு மற்றும் செதுக்குதல்',
+    'Paddy Combine Harvester Machine Operator': 'நெல் அறுவடை இயந்திர ஆபரேட்டர்',
+    'Powerloom Fabric Weaving & Maintenance': 'விசைத்தறி துணி நெசவு மற்றும் பராமரிப்பு',
+    'Bhavani Jamakkalam Carpet Handloom Artisan': 'பவானி ஜமக்காளம் கைத்தறி நெசவாளர்',
+    'Turmeric Grading & Moisture Testing Specialist': 'மஞ்சள் தரம் மற்றும் ஈரப்பதம் சோதனை நிபுணர்',
+    'Export Apparel Finishing & Packing': 'ஏற்றுமதி ஆடை பினிஷிங் மற்றும் பேக்கிங்',
+    'Fabric Screen Printing & Color Kitchen': 'துணி ரோட்டரி ஸ்கிரீன் பிரிண்டிங் & வண்ண கலவை',
+    'Knitwear Garment Flatlock Tailoring Master': 'பின்னலாடை ஃப்ளாட்லாக் தையல் மாஸ்டர்',
+    'Finished Leather Quality Inspection': 'முடிக்கப்பட்ட தோல் தர பரிசோதனை',
+    'Transit Freight Logistics': 'ரயில்வே சரக்கு போக்குவரத்து லாஜிஸ்டிக்ஸ்',
+    'Hospital Patient Desk Navigation': 'மருத்துவமனை நோயாளிகள் வழிகாட்டுதல்',
+    'Paper Mill Pulp Processing Operator': 'காகித ஆலை கூழ் தயாரிப்பு உதவியாளர்',
+    'Wind Turbine Blade Maintenance Tech': 'காற்றாலை பிளேடு ஆய்வு மற்றும் பராமரிப்பு',
+    'Tirunelveli Halwa Clarified Ghee Cooking Master': 'திருநெல்வேலி அல்வா நெய் தயாரிப்பு மாஸ்டர்',
+    'Silver Anklet Jewelry Polishing Artisan': 'வெள்ளி கொலுசு மெருகூட்டல் கைவினைஞர்',
+    'Sago & Starch Processing Operator': 'ஜவ்வரிசி மற்றும் மரவள்ளிக்கிழங்கு மாவு ஆலை ஆபரேட்டர்',
+    'Steel Furnace & Rolling Mill Operation': 'எஃகு உலை மற்றும் உருட்டாலை ஆபரேட்டர்',
+    'Railway Locomotive Mechanical Maintenance': 'ரயில்வே இன்ஜின் மெக்கானிக்கல் பராமரிப்பு',
+    'High-Pressure Boiler Tube TIG Welding': 'உயர் அழுத்த பாய்லர் டிஐஜி வெல்டர்',
+    'Sungudi Cotton Saree Wax Dyeing': 'சுங்குடி காட்டன் புடவை மெழுகு டை கலைஞர்',
+    'Madurai Malli Jasmine Stringing & Cold Chain': 'மதுரை மல்லி பூ கட்டுதல் மற்றும் குளிர்பதன பேக்கிங்',
+    'Foundry Sand Moulding & Core Casting': 'ஃபவுண்டரி மணல் மோல்டிங் & வார்ப்பு கலைஞர்',
+    'Textile Ring Spinning Maintenance': 'ஜவுளி மில் ரிங் ஸ்பின்னிங் பராமரிப்பு',
+    'Agricultural Pump Assembly Technician': 'விவசாய மற்றும் மோனோபிளாக் பம்ப் அசெம்பிளி டெக்னீஷியன்',
+    'Precision CNC Lathe & Milling Operator': 'துல்லிய CNC லேத் மற்றும் அரைக்கும் இயந்திர ஆபரேட்டர்',
+    'Container Logistics': 'கன்டெய்னர் லாஜிஸ்டிக்ஸ்',
     // App header & Global
-    appName: 'Skill2Work (స్కిల్2వర్క్)',
+    appName: 'Talent2Task (టాలెంట్2టాస్క్)',
     regionTag: 'వెల్లూరు ప్రాంతం',
     tagline: 'సరైన నైపుణ్యాలు. సరైన పని. నిజమైన ప్రభావం. • వెల్లూరు',
     offlineStatus: 'ఆఫ్‌లైన్ SQLite మోడ్',
     sqlTerminal: 'SQLite కన్సోల్',
-    roleSeeker: 'ఉద్యోగ అన్వేషకుడు',
-    roleRecruiter: 'నియామకదారుడు',
+    roleSeeker: 'జాబ్ సీకర్ (Job Seeker)',
+    roleRecruiter: 'జాబ్ రిక్రూటర్ (Job Recruiter)',
     switchRole: 'పాత్రను మార్చండి',
     offlineAlert: 'మీరు ఆఫ్‌లైన్‌లో ఉన్నారు. మీ సేవ్ చేయబడిన గిగ్‌లు మరియు ప్రొఫైల్‌లు స్థానికంగా అందుబాటులో ఉన్నాయి.',
     marketDemand: 'మార్కెట్ డిమాండ్',
@@ -1064,15 +2047,15 @@ export const TRANSLATIONS: Record<Language, TranslationDictionary> = {
     loginSubtitle: 'మీ ఖాతా రకాన్ని ఎంచుకుని మీ వర్క్‌స్పేస్‌ను యాక్సెస్ చేయండి.',
     loginSeekerDesc: 'స్థానిక గిగ్‌లను కనుగొనండి',
     loginRecruiterDesc: 'గిగ్‌ను పోస్ట్ చేయండి',
-    loginEmailLabel: 'ఈమెయిల్ లేదా మొబైల్ నంబర్',
-    loginEmailPlaceholder: 'you@example.com',
+    loginEmailLabel: 'మొబైల్ ఫోన్ నంబర్',
+    loginEmailPlaceholder: '98765 43210',
     loginPasswordLabel: 'పాస్‌వర్డ్',
     loginPasswordPlaceholder: 'మీ పాస్‌వర్డ్‌ను నమోదు చేయండి',
     loginRememberMe: 'నన్ను గుర్తుంచుకో',
     loginForgotPassword: 'పాస్‌వర్డ్ మర్చిపోయారా?',
     loginSignInSeeker: 'ఉద్యోగ అన్వేషకుడిగా సైన్ ఇన్ చేయండి',
     loginSignInRecruiter: 'నియామకదారుడిగా సైన్ ఇన్ చేయండి',
-    loginNewPrompt: 'Skill2Work కు కొత్తవారా?',
+    loginNewPrompt: 'Talent2Task కు కొత్తవారా?',
     loginCreateAccount: 'ఖాతాను సృష్టించండి',
     loginHeroTitle1: 'సరైన నైపుణ్యాలు.',
     loginHeroTitle2: 'సరైన పని.',
@@ -1085,33 +2068,41 @@ export const TRANSLATIONS: Record<Language, TranslationDictionary> = {
     tabSignIn: 'సైన్ ఇన్',
     tabCreateAccount: 'ఖాతాను సృష్టించండి',
     newUserRegistration: 'కొత్త వినియోగదారు నమోదు',
-    joinSkill2Work: 'Skill2Work వెల్లూరులో చేరండి',
-    createAccountSubtitle: 'వెల్లూరులో 3కిమీ పరిధిలో స్థానిక ఉద్యోగాలను పొందడానికి లేదా పోస్ట్ చేయడానికి ఖాతాను సృష్టించండి.',
+    joinTalent2Task: 'Talent2Task తమిళనాడులో చేరండి',
+    createAccountSubtitle: 'తమిళనాడు వ్యాప్తంగా ఉద్యోగాలను కనుగొనడానికి లేదా పోస్ట్ చేయడానికి ఖాతాను సృష్టించండి.',
     fullNameLabel: 'పూర్తి పేరు',
     companyNameLabel: 'సంస్థ / వ్యాపార పేరు',
     fullNamePlaceholder: 'ఉదా. కార్తీక్ రాజా',
     companyNamePlaceholder: 'ఉదా. వెల్లూర్ ఫ్రెష్ మార్ట్',
     mobilePhoneLabel: 'మొబైల్ ఫోన్ నంబర్',
-    mobilePhonePlaceholder: '+91 98401 23456',
+    mobilePhonePlaceholder: '98765 43210',
     ageLabel: 'వయస్సు',
-    selectVelloreLocation: 'ప్రధాన వెల్లూరు ప్రాంతాన్ని ఎంచుకోండి',
-    useGpsBtn: 'GPS ఉపయోగించండి',
+    yearsOfExperienceLabel: 'పని అనుభవం (సంవత్సరాలు)',
+    cityLabel: 'నగరం / ప్రాంతం (తమిళనాడు)',
+    selectVelloreLocation: 'నగరం / ప్రాథమిక ప్రాంతాన్ని ఎంచుకోండి',
+    selectCity: 'నగరాన్ని ఎంచుకోండి',
+    useGpsBtn: 'లైవ్ జీపీఎస్',
+    gpsPromptTitle: 'సమీప ఉద్యోగాల కోసం లైవ్ జీపీఎస్ ఎనేబుల్ చేయండి',
+    gpsPromptSubtitle: 'తమిళనాడు వ్యాప్తంగా మీకు సమీపంలో ఉన్న గిగ్‌లను కనుగొనడానికి లొకేషన్ అనుమతించండి',
     skillsOffered: 'నైపుణ్యాలు & సేవలు',
     availableTimeSlots: 'అందుబాటులో ఉన్న సమయాలు',
-    createSeekerAccountBtn: 'ఉద్యోగార్థి ఖాతాను సృష్టించండి (DB సేవ్)',
-    createRecruiterAccountBtn: 'నియామకకర్త ఖాతాను సృష్టించండి (DB సేవ్)',
+    createSeekerAccountBtn: 'ఖాతాను సృష్టించండి',
+    createRecruiterAccountBtn: 'ఖాతాను సృష్టించండి',
     alreadyRegisteredPrompt: 'ఇప్పటికే నమోదయ్యారా?',
     signInNowBtn: 'ఇప్పుడు సైన్ ఇన్ చేయండి',
-    orSignInRegistered: 'లేదా నమోదిత SQLite వినియోగదారుగా సైన్ ఇన్ చేయండి',
-    sqliteSavedFeature: 'SQLite WASM డేటాబేస్‌లో తక్షణమే సేవ్ చేయబడింది',
-    radar3kmFeature: 'స్థానిక 3కిమీ రాడార్ జాబ్ మ్యాచింగ్',
+    orSignInRegistered: '',
+    sqliteSavedFeature: 'SQLite డేటాబేస్‌లో సేవ్ చేయబడింది',
+    radar3kmFeature: 'లైవ్ జీపీఎస్ & నగర రాడార్ మ్యాచింగ్',
+    exploreGigsTab: 'గిగ్‌లను అన్వేషించండి',
+    manageGigsTab: 'పోస్ట్ & నిర్వహించండి',
+    postGigTab: 'గిగ్‌ను పోస్ట్ చేయండి',
 
     // Seeker Tab
-    radarHeading: 'లైవ్ గిగ్ రాడార్ (వెల్లూరు)',
+    radarHeading: 'లైవ్ గిగ్ రాడార్ (తమిళనాడు)',
     radarSubtitle: 'మీకు దగ్గరలోని పార్ట్-టైమ్ మరియు గిగ్ పనులను కనుగొనండి',
     withinRadius: 'లోపల',
     radiusSlider: 'దూరం ఫిల్టర్',
-    allVellore: 'మొత్తం వెల్లూరు',
+    allVellore: 'మొత్తం తమిళనాడు',
     matchScore: 'మ్యాచ్',
     claimJobBtn: 'గిగ్‌ను స్వీకరించండి',
     claimedBadge: 'మీరు స్వీకరించారు',
@@ -1119,6 +2110,23 @@ export const TRANSLATIONS: Record<Language, TranslationDictionary> = {
     completedBadge: 'పూర్తయ్యింది',
     jobDetailsTitle: 'గిగ్ వివరాలు మరియు సంప్రదింపు',
     directionsBtn: 'మార్గం చూడండి',
+    directionsModalTitle: 'గిగ్ మార్గం & దిశానిర్దేశాలు',
+    directionsModalSubtitle: 'ఖచ్చితమైన GPS నావిగేషన్ & ప్రత్యక్ష రూట్ గైడ్',
+    yourLocationLabel: 'మీ ప్రారంభ స్థానం',
+    gigLocationLabel: 'రిక్రూటర్ పని ప్రదేశం',
+    startNavigationBtn: 'Google Maps నావిగేషన్ ప్రారంభించండి',
+    openGoogleMapsBtn: 'Google Maps GPS',
+    openAppleMapsBtn: 'Apple Maps',
+    onMyWayBtn: 'నేను బయలుదేరాను (On My Way)',
+    onMyWayAlertSent: 'రిక్రూటర్‌కు మీ రాక సమయం తెలియజేయబడింది!',
+    travelModeBike: 'బైక్ / ద్విచక్ర వాహనం',
+    travelModeCar: 'కార్ / టాక్సీ',
+    travelModeAuto: 'ఆటో / రవాణా',
+    travelModeWalk: 'నడక',
+    liveGpsAccurate: 'ఖచ్చితమైన GPS స్థానం సక్రియంగా ఉంది',
+    estimatedArrival: 'అంచనా వేసిన ప్రయాణ సమయం',
+    turnByTurnGuide: 'మార్గదర్శక వివరాలు',
+    readyToGoBanner: 'బయలుదేరడానికి సిద్ధమా? గిగ్ స్థలానికి GPS దిశానిర్దేశాలను పొందండి',
     callRecruiterBtn: 'కాల్ చేయండి',
     whatsappRecruiterBtn: 'వాట్సాప్',
     myGigsTab: 'నా గిగ్‌లు',
@@ -1137,7 +2145,7 @@ export const TRANSLATIONS: Record<Language, TranslationDictionary> = {
     claiming: 'స్వీకరిస్తున్నారు...',
     overall: 'మొత్తం',
     noClaimedGigsTitle: 'ఇంకా గిగ్‌లు స్వీకరించలేదు',
-    noClaimedGigsDesc: 'కాట్పాడి, CMC మరియు వెల్లూరులో గంటవారీ పనులను అంగీకరించడానికి 3 కి.మీ లైవ్ రాడార్‌ను ఉపయోగించండి.',
+    noClaimedGigsDesc: 'తమిళనాడు అంతటా గంటవారీ పనులను అంగీకరించడానికి లైవ్ రాడార్‌ను ఉపయోగించండి.',
     myClaimedSubtitle: 'మీరు అంగీకరించిన గిగ్‌లను ట్రాక్ చేయండి మరియు రిక్రూటర్‌లను సంప్రదించండి',
 
     // Profile Modal
@@ -1150,24 +2158,64 @@ export const TRANSLATIONS: Record<Language, TranslationDictionary> = {
     skillsSelected: 'ఎంచుకోబడింది',
     addCustomSkillPlaceholder: 'ఇతర నైపుణ్యాన్ని జోడించండి (ఉదా. ఎలక్ట్రీషియన్, ట్యూషన్)...',
     myAvailability: 'అందుబాటు సమయం',
-    myLocation: 'ప్రస్తుత వెల్లూరు లొకేషన్ / GPS',
+    myLocation: 'ప్రస్తుత లొకేషన్ / GPS',
     useCurrentGps: 'లైవ్ GPS పొందండి',
     locating: 'గుర్తిస్తోంది...',
-    selectLandmark: 'వెల్లూరు ల్యాండ్‌మార్క్‌ను ఎంచుకోండి',
+    selectLandmark: 'తమిళనాడు ల్యాండ్‌మార్క్‌ను ఎంచుకోండి',
     saveProfileBtn: 'ప్రొఫైల్‌ను సేవ్ చేయండి & రాడార్‌ను నవీకరించండి',
+
+    // Recruiter Profile Location Details
+    doorNoLabel: 'డోర్ / షాప్ / ఫ్లాట్ నంబర్',
+    doorNoPlaceholder: 'ఉదా. డోర్ నం. 14/B, 2వ అంతస్తు',
+    streetNameLabel: 'వీధి పేరు / రోడ్డు / ప్రాంతం',
+    streetNamePlaceholder: 'ఉదా. అన్నా సలై, గాంధీ వీధి',
+    cityOrDistrictLabel: 'నగరం లేదా జిల్లా',
+    landmarkFieldLabel: 'ప్రముఖ ల్యాండ్‌మార్క్',
+    landmarkFieldPlaceholder: 'ఉదా. బస్ స్టాండ్ దగ్గర / బ్యాంకు ఎదురుగా',
+    workplaceAddressLabel: 'పూర్తి కార్యాలయ చిరునామా (నావిగేషన్ కోసం)',
+    workplaceAddressHint: 'మీ గిగ్‌లను క్లెయిమ్ చేసే అభ్యర్థులు ఈ కార్యాలయ చిరునామాకు ఖచ్చితమైన నావిగేషన్‌ను పొందుతారు.',
+    recruiterLocationTitle: 'కార్యాలయ మరియు వ్యాపార లొకేషన్',
+    recruiterLocationSubtitle: 'ఖచ్చితమైన నావిగేషన్ కోసం డోర్ నంబర్, వీధి పేరు, ల్యాండ్‌మార్క్ మరియు జిల్లాను నిర్వహించండి',
+
+    // Phase 35 — Payment Feature UI Terminology
+    payNowBtn: 'ఇప్పుడే చెల్లించండి',
+    paymentSuccessful: 'చెల్లింపు విజయవంతమైంది',
+    paymentReceived: 'చెల్లింపు అందింది',
+    processingPayment: 'చెల్లింపు ప్రాసెస్ అవుతోంది...',
+    paymentCompleted: 'చెల్లింపు పూర్తయింది',
+    paidStatus: 'చెల్లించబడింది',
 
     // Skill Gap & AI Recommendations
     skillGapTitle: 'AI నైపుణ్య అంతరం & కెరీర్ సిఫార్సులు',
     skillGapBadge: '+35% మ్యాచ్ స్కోర్ బూస్ట్',
-    skillGapDesc: 'టాప్ వెల్లూరు గిగ్‌లలో 90%+ మ్యాచ్ స్కోర్‌ను పొందడానికి ఈ అధిక డిమాండ్ ఉన్న నైపుణ్యాలను జోడించండి.',
+    skillGapDesc: 'టాప్ తమిళనాడు గిగ్‌లలో 90%+ మ్యాచ్ స్కోర్‌ను పొందడానికి ఈ అధిక డిమాండ్ ఉన్న నైపుణ్యాలను జోడించండి.',
     addToMySkills: 'నా నైపుణ్యాలలో జోడించండి',
     neededInGigs: 'అవసరమైన గిగ్‌లు:',
     allStarTitle: 'అద్భుతమైన నైపుణ్య ప్రొఫైల్!',
-    allStarDesc: 'మీ ప్రొఫైల్ సమీపంలోని వెల్లూరు గిగ్‌లలో అభ్యర్థించిన 100% నైపుణ్యాలను కలిగి ఉంది.',
+    allStarDesc: 'మీ ప్రొఫైల్ సమీపంలోని తమిళనాడు గిగ్‌లలో అభ్యర్థించిన 100% నైపుణ్యాలను కలిగి ఉంది.',
+
+    // Phase 4 — AI Skill Understanding & Skill-Gap Engine
+    skillGapCurrentSkills: 'ప్రస్తుత నైపుణ్యాలు',
+    skillGapRelatedSkills: 'సంబంధిత నైపుణ్యాలు',
+    skillGapMissingSkills: 'అధిక డిమాండ్ ఉన్న తప్పిపోయిన నైపుణ్యాలు',
+    skillGapUpskillingPath: 'సిఫార్సు చేయబడిన నైపుణ్యాభివృద్ధి మార్గం',
+    skillGapCoverage: 'మార్కెట్ నైపుణ్య కవరేజ్',
+    skillGapUnlockedGigs: 'అన్‌లాక్ చేయబడిన పనులు',
+    skillGapPotentialBoost: 'సంభావ్య వేతన పెరుగుదల',
+    skillGapWhyRecommended: 'ఇది ఎందుకు సిఫార్సు చేయబడింది',
+    skillGapStep: 'దశ',
+    skillGapAffinity: 'AI సారూప్యత',
+    skillGapDemand: 'మార్కెట్ డిమాండ్',
+    skillGapBridge: 'బ్రిడ్జ్ నైపుణ్యం',
+    skillGapHighDemandBadge: 'అధిక డిమాండ్',
+    skillGapHighPayBadge: 'అత్యధిక సంపాదన',
+    skillGapExploreSteps: 'అభివృద్ధి మార్గం',
+    skillGapAllStages: 'పూర్తి నైపుణ్య విశ్లేషణ',
+    skillGapAddSkillBtn: 'నా నైపుణ్యాలకు జోడించు',
 
     // Recruiter Portal
     recruiterHeading: 'నియామకదారు నిర్వహణ కేంద్రం',
-    recruiterSubtitle: 'కాట్పాడి, CMC, VIT మరియు వెల్లూరులో గిగ్‌లను పోస్ట్ చేయండి',
+    recruiterSubtitle: 'తమిళనాడు వ్యాప్తంగా గిగ్‌లను పోస్ట్ చేయండి',
     activeRecruiter: 'యాక్టివ్ రిక్రూటర్',
     postNewGigBtn: 'కొత్త గిగ్‌ను పోస్ట్ చేయండి',
     postedGigsCount: 'పోస్ట్ చేసిన గిగ్‌లు',
@@ -1189,8 +2237,8 @@ export const TRANSLATIONS: Record<Language, TranslationDictionary> = {
     noRecruiterGigs: 'మీరు ఇంకా ఎటువంటి గిగ్‌లను పోస్ట్ చేయలేదు. ప్రారంభించడానికి "కొత్త గిగ్‌ను పోస్ట్ చేయండి" క్లిక్ చేయండి!',
 
     // Post Gig Form
-    postModalTitle: 'స్థానిక గిగ్‌ను పోస్ట్ చేయండి (వెల్లూరు)',
-    postModalSubtitle: '3 కి.మీ రాడార్‌లో తక్షణమే కనిపించేలా వెల్లూరు స్థానిక గిగ్‌ను పోస్ట్ చేయండి',
+    postModalTitle: 'స్థానిక గిగ్‌ను పోస్ట్ చేయండి (తమిళనాడు)',
+    postModalSubtitle: 'తమిళనాడు రాడార్‌లో తక్షణమే కనిపించేలా స్థానిక గిగ్‌ను పోస్ట్ చేయండి',
     jobTitleLabel: 'ఉద్యోగ పేరు',
     jobTitlePlaceholder: 'ఉదా. డెలివరీ సహాయకుడు, స్టోర్ బిల్లింగ్, ఈవెంట్ సహాయం',
     categoryLabel: 'వర్గం',
@@ -1203,9 +2251,9 @@ export const TRANSLATIONS: Record<Language, TranslationDictionary> = {
     perShift: 'షిఫ్ట్‌కు',
     perDay: 'రోజుకు',
     requiredSkillsLabel: 'అవసరమైన నైపుణ్యాలు',
-    landmarkAreaLabel: 'వెల్లూరు ప్రాంతం / ప్రదేశం',
+    landmarkAreaLabel: 'తమిళనాడు నగరం / ప్రాంతం / ప్రదేశం',
     clickMapInstruction: 'సరైన స్థానాన్ని ఎంచుకోవడానికి మ్యాప్‌పై క్లిక్ చేయండి లేదా ఎంచుకోండి',
-    publishJobBtn: 'గిగ్‌ను ప్రచురించండి (SQLite)',
+    publishJobBtn: 'గిగ్‌ను ప్రచురించండి',
 
     // Categories
     catDelivery: 'డెలివరీ మరియు రవాణా',
@@ -1216,7 +2264,7 @@ export const TRANSLATIONS: Record<Language, TranslationDictionary> = {
     catElectrical: 'సాంకేతిక & నిర్వహణ',
 
     // Filter & Search
-    searchPlaceholder: 'పని, నైపుణ్యం లేదా వెల్లూరు స్థలాన్ని వెతకండి...',
+    searchPlaceholder: 'పని, నైపుణ్యం లేదా తమిళనాడు స్థలాన్ని వెతకండి...',
     categoryFilter: 'వర్గం',
     allCategories: 'అన్ని వర్గాలు',
     minPayFilter: 'కనీస పారితోషికం (₹)',
@@ -1230,19 +2278,100 @@ export const TRANSLATIONS: Record<Language, TranslationDictionary> = {
     matchedSkillsLabel: 'సరిపోలిన నైపుణ్యాలు',
     missingSkillsLabel: 'లేని నైపుణ్యాలు',
 
+    // Hybrid AI Matching & Explainability
+    whyRecommended: 'ఈ సరిపోలిక ఎందుకు సిఫార్సు చేయబడింది?',
+    hybridMatchBreakdown: 'హైబ్రిడ్ AI మ్యాచ్ వివరాలు',
+    skillSimilarityLabel: 'నైపుణ్య సమానత',
+    distanceFactorLabel: 'దూరం',
+    availabilityFactorLabel: 'లభ్యత',
+    experienceFactorLabel: 'అనుభవం',
+    localDemandFactorLabel: 'స్థానిక డిమాండ్',
+    reliabilityFactorLabel: 'విశ్వసనీయత',
+
+    // Phase 3 — NLP Requirement Understanding
+    aiRequirementAssistant: 'AI అవసరాల సహాయకుడు',
+    aiFastDraftTitle: 'సహజ భాషతో వేగవంతమైన డ్రాఫ్ట్',
+    aiInputPlaceholder: 'ఉదా: మదురై దగ్గర రేపు సాయంత్రం అనుభవజ్ఞుడైన ఏసీ టెక్నీషియన్ కావాలి',
+    extractWithAiBtn: 'AIతో విశ్లేషించండి',
+    analyzingWithAi: 'విశ్లేషిస్తోంది...',
+    extractedDetailsTitle: 'AI సంగ్రహించిన వివరాలు — పరిశీలించండి & సవరించండి',
+    extractedDetailsSubtitle: 'పోస్టింగ్‌కు వర్తించే ముందు ఫీల్డ్‌లను ధృవీకరించండి',
+    applyExtractedBtn: 'వివరాలను వర్తింపజేయండి',
+    dismissExtractedBtn: 'రద్దు చేయి',
+    detectedIntent: 'ఉద్దేశం',
+    hiringWorkerIntent: 'ఉద్యోగి నియామకం',
+    detectedExperience: 'అనుభవం',
+    detectedShift: 'సమయం / షిఫ్ట్',
+    detectedLocation: 'స్థానం',
+    detectedPayout: 'వేతనం',
+    missingInformationAlert: 'శ్రద్ధ వహించండి',
+    confirmBeforePostNotice: 'మీ నిర్ధారణ లేకుండా ఎటువంటి AI సమాచారం పోస్ట్ చేయబడదు.',
+    aiSearchParsed: 'AI సహజ భాష శోధన',
+    // Phase 6 — Voice & Multilingual AI
+    voiceSearchBtn: 'వాయిస్ శోధన',
+    voiceFastDraftBtn: 'అవసరాన్ని మాట్లాడండి',
+    voiceListening: 'వింటోంది... ఇప్పుడు మాట్లాడండి',
+    voiceListeningPrompt: 'తమిళం, తెలుగు, హిందీ లేదా ఆంగ్లంలో మాట్లాడండి లేదా టైప్ చేయండి',
+    voicePermissionDenied: 'మైక్రోఫోన్ అనుమతి నిరోధించబడింది',
+    voicePermissionHelp: 'దయచేసి బ్రౌజర్ సెట్టింగ్‌లలో మైక్రోఫోన్ అనుమతించండి లేదా నమూనా వాయిస్ ప్రయత్నించండి.',
+    voiceUnsupported: 'స్పీచ్ రికగ్నిషన్ మద్దతు లేదు',
+    voiceUnsupportedHelp: 'మీ బ్రౌజర్ Web Speech API కి మద్దతు ఇవ్వదు. దయచేసి టైప్ చేయండి.',
+    voiceSamplePhrases: 'వాయిస్ AI నమూనా ఇన్‌పుట్‌లు',
+    voiceTrySample: 'నమూనా వాయిస్ ప్రయత్నించండి',
+    voiceProcessing: 'వాయిస్ ప్రాసెస్ అవుతోంది...',
+    aiMultilingualActive: 'AI బహుభాషా & వాయిస్ యాక్టివ్',
+    aiLanguageDetected: 'భాష గుర్తించబడింది',
+    // Phase 7 — Trust & Safety
+    trustSafetyTitle: 'విశ్వసనీయత & భద్రత అంచనా',
+    trustPotentialRisk: 'సంభావ్య ప్రమాదం గుర్తించబడింది',
+    trustVerifiedRecruiter: 'ధృవీకరించబడిన రిక్రూటర్',
+    trustStandardVerification: 'ప్రామాణిక ధృవీకరణ',
+    trustVerifiedListing: 'ధృవీకరించబడిన జాబితా',
+    trustNewRecruiterNote: 'కొత్త రిక్రూటర్ ఖాతా — ప్రామాణిక భద్రతా తనిఖీలు ఉత్తీర్ణులయ్యారు. పనులు పూర్తయ్యే కొద్దీ రేటింగ్‌లు పెరుగుతాయి.',
+    trustReportJobBtn: 'రిపోర్ట్ చేయండి',
+    trustReportModalTitle: 'ఉద్యోగ పోస్టింగ్‌ను రిపోర్ట్ చేయండి',
+    trustReportSuccessTitle: 'సమీక్ష కోసం నివేదిక లాగ్ చేయబడింది',
+    trustNoAutoBanNotice: 'దుర్వినియోగాన్ని నివారించడానికి, నివేదికలు లేదా AI ఆధారంగా వినియోగదారులను ఎప్పటికీ స్వయంచాలకంగా నిషేధించబడరు.',
+
+    // Phase 8 — Reliability & Continuous Feedback
+    workerReliabilityTitle: 'కార్మికుల విశ్వసనీయత & ఖ్యాతి',
+    reliabilityScoreLabel: 'విశ్వసనీయత స్కోరు',
+    reliabilityTierLabel: 'ఖ్యాతి స్థాయి',
+    completionRateLabel: 'పని పూర్తి రేటు',
+    continuousFeedbackLabel: 'నిరంతర ఫీడ్‌బ్యాక్ చక్రం',
+    verifiedReviewsLabel: 'ధృవీకరించబడిన సమీక్షలు',
+    newWorkerBaselineNote: 'కొత్త కార్మికుల ప్రాథమిక స్కోరు వర్తించబడింది — Talent2Task లో విశ్వసనీయ రికార్డు నిర్మించబడుతుంది.',
+
     // Community Demand Modal
     demandModalTitle: 'కమ్యూనిటీ డిమాండ్ & స్కిల్ ట్రెండ్స్',
     demandModalSubtitle: 'కాట్పాడి, CMC, VIT మరియు సతువాచారిలో ప్రత్యక్ష డిమాండ్ విశ్లేషణ',
-    demandRegionBadge: 'వెల్లూరు జిల్లా రియల్-టైమ్ AI రాడార్',
+    demandRegionBadge: 'తమిళనాడు రియల్-టైమ్ AI రాడార్',
     topInDemandRole: 'అత్యధిక డిమాండ్ ఉన్న పని',
     avgHourlyPayout: 'సగటు గంట పారితోషికం',
     peakHiringWindows: 'గరిష్ట నియామక సమయాలు',
     hourlyPaySub: 'అదే రోజున తక్షణ పారితోషికం',
     peakHiringSub: 'సౌకర్యవంతమైన పార్ట్-టైమ్ షిఫ్టులు',
-    skillDemandRanking: 'వెల్లూరులో డిమాండ్ ఉన్న నైపుణ్యాలు & వేతనం',
+    skillDemandRanking: 'తమిళనాడులో డిమాండ్ ఉన్న నైపుణ్యాలు & వేతనం',
     openGigsSuffix: 'యాక్టివ్ గిగ్‌లు',
     topAreaLabel: 'ప్రధాన ప్రాంతం:',
     growthLabel: 'వృద్ధి:',
+    demandActualTitle: 'ప్రస్తుత స్థానిక డిమాండ్',
+    demandPredictedTitle: 'అంచనా వేసిన డిమాండ్',
+    demandLevelHigh: 'అధికం',
+    demandLevelMedium: 'మధ్యస్థం',
+    demandLevelLow: 'తక్కువ',
+    demandTrendRising: 'పెరుగుతోంది',
+    demandTrendStable: 'స్థిరంగా ఉంది',
+    demandTrendSoftening: 'తగ్గుతోంది',
+    demandInsufficientData: 'సరిపోని చారిత్రక డేటా',
+    demandAttributionTitle: 'డేటా మూలం & ML మోడల్ పారదర్శకత',
+    demandSelectRegion: 'జిల్లా / ప్రాంతాన్ని ఎంచుకోండి',
+    demandActiveGigsLabel: 'యాక్టివ్ పనులు',
+    demandCompletedGigsLabel: 'పూర్తయిన పనులు',
+    demandModelArchitecture: 'ర్యాండమ్ ఫారెస్ట్ ఎంసెంబుల్ (10 డెసిషన్ ట్రీస్)',
+    demandWhyThisPrediction: 'డేటా & అంచనా వివరణ',
+    demandFilterGigsBtn: 'పనులను చూడండి',
+    demandAllTamilNadu: 'మొత్తం తమిళనాడు (రాష్ట్రవ్యాప్తంగా)',
 
     // Feedback Modal
     feedbackTitle: 'అనుభవాన్ని రేట్ చేయండి మరియు సమీక్షించండి',
@@ -1266,15 +2395,24 @@ export const TRANSLATIONS: Record<Language, TranslationDictionary> = {
     noResults: 'క్వెరీ విజయవంతంగా అమలు చేయబడింది, ఫలితాలు లేవు.',
 
     // Footer & Toasts
-    footerTagline: 'సరైన నైపుణ్యాలు. సరైన పని. నిజమైన ప్రభావం.',
-    footerEngineDesc: 'హైపర్-లోకల్ గిగ్ డిస్కవరీ ఇంజిన్ — వెల్లూరు జిల్లా, తమిళనాడు',
+    footerTagline: 'సరైన ప్రతిభ. సరైన పని. నిజమైన ప్రభావం.',
+    footerEngineDesc: 'హైపర్-లోకల్ గిగ్ డిస్కవరీ ఇంజిన్ — తమిళనాడు',
     toastClaimSuccess: '🎉 పని స్వీకరించబడింది! రిక్రూటర్‌కు సంప్రదింపు సమాచారం పంపబడింది.',
     toastStatusUpdated: 'స్థితి నవీకరించబడింది:',
-    toastJobDeleted: 'గిగ్ SQLite నుండి తొలగించబడింది.',
-    toastJobPosted: '🚀 కొత్త వెల్లూరు గిగ్ పోస్ట్ చేయబడింది మరియు 3 కి.మీ రాడార్‌లో ప్రత్యక్షంగా ఉంది!',
+    toastJobDeleted: 'గిగ్ తొలగించబడింది.',
+    toastJobPosted: '🚀 కొత్త గిగ్ పోస్ట్ చేయబడింది మరియు తమిళనాడు రాడార్‌లో ప్రత్యక్షంగా ఉంది!',
     toastProfileUpdated: '✅ ప్రొఫైల్ మరియు GPS నవీకరించబడ్డాయి.',
     toastSkillAdded: 'జోడించబడింది! AI మ్యాచ్ స్కోర్ తిరిగి లెక్కించబడింది.',
-    toastReviewSaved: '⭐ రేటింగ్ సేవ్ చేయబడింది! కమ్యూనిటీ నమ్మకం నవీకరించబడింది.'
+    toastReviewSaved: '⭐ రేటింగ్ సేవ్ చేయబడింది! కమ్యూనిటీ నమ్మకం నవీకరించబడింది.',
+    nextStepBtn: 'తరువాత',
+    backStepBtn: 'వెనుకకు',
+    stepAccountInfo: '1. ఖాతా వివరాలు',
+    stepLocationExperience: '2. అనుభవం & స్థానం',
+    stepLocationDetails: '2. స్థాన వివరాలు',
+    selectRoleLabel: 'మీ పాత్రను ఎంచుకోండి',
+    phoneExact10DigitsError: 'దయచేసి సరిగ్గా 10 అంకెల మొబైల్ నంబర్‌ను నమోదు చేయండి.',
+    passwordRegexError: 'పాస్‌వర్డ్ 8-12 అక్షరాల పొడవు ఉండాలి మరియు కనీసం ఒక సంఖ్య మరియు ఒక ప్రత్యేక అక్షరాన్ని కలిగి ఉండాలి.',
+    passwordRegexHint: '8-12 అక్షరాలు, కనీసం 1 సంఖ్య & 1 ప్రత్యేక అక్షరం'
   }
 };
 
@@ -1282,6 +2420,89 @@ export const TRANSLATIONS: Record<Language, TranslationDictionary> = {
 const CONTENT_TRANSLATIONS: Record<Language, Record<string, string>> = {
   en: {},
   ta: {
+    // Tamil Nadu Districts & Key Cities
+    'Sivakasi': 'சிவகாசி',
+    'Chennai': 'சென்னை',
+    'Coimbatore': 'கோயம்புத்தூர்',
+    'Madurai': 'மதுரை',
+    'Tiruchirappalli (Trichy)': 'திருச்சிராப்பள்ளி (திருச்சி)',
+    'Tiruchirappalli': 'திருச்சிராப்பள்ளி',
+    'Trichy': 'திருச்சி',
+    'Salem': 'சேலம்',
+    'Tirunelveli': 'திருநெல்வேலி',
+    'Vellore': 'வேலூர்',
+    'Tiruppur': 'திருப்பூர்',
+    'Erode': 'ஈரோடு',
+    'Thanjavur': 'தஞ்சாவூர்',
+    'Thoothukudi (Tuticorin)': 'தூத்துக்குடி (டியூட்டிகாரின்)',
+    'Thoothukudi': 'தூத்துக்குடி',
+    'Tuticorin': 'தூத்துக்குடி',
+    'Kanyakumari (Nagercoil)': 'கன்னியாகுமரி (நாகர்கோவில்)',
+    'Kanyakumari': 'கன்னியாகுமரி',
+    'Nagercoil': 'நாகர்கோவில்',
+    'Ariyalur': 'அரியலூர்',
+    'Chengalpattu': 'செங்கல்பட்டு',
+    'Cuddalore': 'கடலூர்',
+    'Dharmapuri': 'தருமபுரி',
+    'Dindigul': 'திண்டுக்கல்',
+    'Hosur': 'ஓசூர்',
+    'Kallakurichi': 'கள்ளக்குறிச்சி',
+    'Kanchipuram': 'காஞ்சிபுரம்',
+    'Karaikudi': 'காரைக்குடி',
+    'Karur': 'கரூர்',
+    'Kodaikanal': 'கொடைக்கானல்',
+    'Krishnagiri': 'கிருஷ்ணகிரி',
+    'Kumbakonam': 'கும்பகோணம்',
+    'Mayiladuthurai': 'மயிலாடுதுறை',
+    'Nagapattinam': 'நாகப்பட்டினம்',
+    'Namakkal': 'நாமக்கல்',
+    'Neyveli': 'நெய்வேலி',
+    'Nilgiris (Ooty)': 'நீலகிரி (ஊட்டி)',
+    'Nilgiris': 'நீலகிரி',
+    'Ooty': 'ஊட்டி',
+    'Perambalur': 'பெரம்பலூர்',
+    'Pollachi': 'பொள்ளாச்சி',
+    'Pudukkottai': 'புதுக்கோட்டை',
+    'Ramanathapuram': 'ராமநாதபுரம்',
+    'Rameswaram': 'ராமேஸ்வரம்',
+    'Ranipet': 'ராணிப்பேட்டை',
+    'Sivaganga': 'சிவகங்கை',
+    'Tenkasi': 'தென்காசி',
+    'Theni': 'தேனி',
+    'Tirupathur': 'திருப்பத்தூர்',
+    'Tiruvallur': 'திருவள்ளூர்',
+    'Tiruvannamalai': 'திருவண்ணாமலை',
+    'Tiruvarur': 'திருவாரூர்',
+    'Viluppuram': 'விழுப்புரம்',
+    'Virudhunagar': 'விருதுநகர்',
+    'Tamil Nadu': 'தமிழ்நாடு',
+    'All Tamil Nadu (Statewide)': 'முழு தமிழ்நாடு (மாநிலம் தழுவிய)',
+    'All Tamil Nadu': 'முழு தமிழ்நாடு',
+
+    // Regional Skills & Industrial Trades
+    'Offset Printing Machine Operator & Color Matcher': 'ஆஃப்செட் பிரிண்டிங் ஆபரேட்டர் & கலர் மேட்சர்',
+    'Offset Printing Machine Operator': 'ஆஃப்செட் பிரிண்டிங் இயந்திர ஆபரேட்டர்',
+    'Color Matching & Quality Inspection': 'வண்ணப் பொருத்தம் & தர ஆய்வு',
+    'Safety Matchbox & Carton Assembly Packaging Hand': 'தீப்பெட்டி & அட்டைப்பெட்டி பேக்கிங் உதவியாளர்',
+    'Carton Packing & Assembly': 'அட்டைப்பெட்டி பேக்கிங் & அசெம்பிளி',
+    'Industrial AC & Ventilation Maintenance Technician': 'தொழில்துறை ஏசி மற்றும் காற்றோட்ட பராமரிப்பு தொழில்நுட்ப வல்லுநர்',
+    'Air-conditioner servicing technician': 'ஏர் கண்டிஷனர் சர்வீஸ் டெக்னீஷியன்',
+    'Electrical safety': 'மின் பாதுகாப்பு',
+    'Local Express Delivery Rider (Sivakasi Town & Thiruthangal)': 'உள்ளூர் விரைவு டெலிவரி ரைடர் (சிவகாசி & திருத்தங்கல்)',
+    'Retail Stationery Billing & Inventory Assistant': 'ஸ்டேஷனரி பில்லிங் மற்றும் சரக்கு உதவியாளர்',
+    'Offset Printing Darkroom Plate Maker & Assistant': 'ஆஃப்செட் பிரிண்டிங் பிளேட் மேக்கர் & உதவியாளர்',
+    'Quality Inspection': 'தர பரிசோதனை',
+    'Sattur Road Printing Zone, Sivakasi': 'சாத்தூர் சாலை அச்சு மண்டலம், சிவகாசி',
+    'Sattur Road Printing Zone': 'சாத்தூர் சாலை அச்சு மண்டலம்',
+    'Near Sivakasi New Bus Stand, Sivakasi': 'சிவகாசி புதிய பேருந்து நிலையம் அருகில்',
+    'Near Sivakasi New Bus Stand': 'சிவகாசி புதிய பேருந்து நிலையம் அருகில்',
+    'Sivakasi Fireworks & Printing Hub, Sivakasi': 'சிவகாசி பட்டாசு & அச்சு மையம்',
+    'Sivakasi Fireworks & Printing Hub': 'சிவகாசி பட்டாசு & அச்சு மையம்',
+    'Thiruthangal Road, Sivakasi': 'திருத்தங்கல் சாலை, சிவகாசி',
+    'Thiruthangal Road': 'திருத்தங்கல் சாலை',
+    'Car Street Wholesale Market, Sivakasi': 'தேரடி மொத்த விற்பனை சந்தை, சிவகாசி',
+    'Car Street Wholesale Market': 'தேரடி மொத்த விற்பனை சந்தை',
+
     // Skills
     'Driving': 'ஓட்டுதல்',
     'Tamil Speaking': 'தமிழ் பேசுதல்',
@@ -1418,6 +2639,89 @@ const CONTENT_TRANSLATIONS: Record<Language, Record<string, string>> = {
   },
 
   hi: {
+    // Tamil Nadu Districts & Key Cities
+    'Sivakasi': 'शिवकाशी',
+    'Chennai': 'चेन्नई',
+    'Coimbatore': 'कोयंबटूर',
+    'Madurai': 'मदुरै',
+    'Tiruchirappalli (Trichy)': 'तिरुचिरापल्ली (त्रिची)',
+    'Tiruchirappalli': 'तिरुचिरापल्ली',
+    'Trichy': 'त्रिची',
+    'Salem': 'सलेम',
+    'Tirunelveli': 'तिरुनेलवेली',
+    'Vellore': 'वेल्लोर',
+    'Tiruppur': 'तिरुपुर',
+    'Erode': 'इरोड',
+    'Thanjavur': 'तंजावुर',
+    'Thoothukudi (Tuticorin)': 'तूतीकोरिन (थूथुकुडी)',
+    'Thoothukudi': 'थूथुकुडी',
+    'Tuticorin': 'तूतीकोरिन',
+    'Kanyakumari (Nagercoil)': 'कन्याकुमारी (नागरकोइल)',
+    'Kanyakumari': 'कन्याकुमारी',
+    'Nagercoil': 'नागरकोइल',
+    'Ariyalur': 'अरियालुर',
+    'Chengalpattu': 'चेंगलपट्टू',
+    'Cuddalore': 'कडलूर',
+    'Dharmapuri': 'धर्मपुरी',
+    'Dindigul': 'डिंडीगुल',
+    'Hosur': 'होसुर',
+    'Kallakurichi': 'कल्लाकुरिची',
+    'Kanchipuram': 'कांचीपुरम',
+    'Karaikudi': 'कराईकुडी',
+    'Karur': 'करूर',
+    'Kodaikanal': 'कोडाइकनाल',
+    'Krishnagiri': 'कृष्णगिरि',
+    'Kumbakonam': 'कुंभकोणम',
+    'Mayiladuthurai': 'मयिलादुथुराई',
+    'Nagapattinam': 'नागापट्टिनम',
+    'Namakkal': 'नमक्कल',
+    'Neyveli': 'नेवेली',
+    'Nilgiris (Ooty)': 'नीलगिरि (ऊटी)',
+    'Nilgiris': 'नीलगिरि',
+    'Ooty': 'ऊटी',
+    'Perambalur': 'पेराम्बलुर',
+    'Pollachi': 'पोलाची',
+    'Pudukkottai': 'पुदुक्कोट्टई',
+    'Ramanathapuram': 'रामनाथपुरम',
+    'Rameswaram': 'रामेश्वरम',
+    'Ranipet': 'रानीपेट',
+    'Sivaganga': 'शिवगंगा',
+    'Tenkasi': 'तेनकासी',
+    'Theni': 'थेनी',
+    'Tirupathur': 'तिरुपत्तूर',
+    'Tiruvallur': 'तिरुवल्लूर',
+    'Tiruvannamalai': 'तिरुवन्नामलाई',
+    'Tiruvarur': 'तिरुवारूर',
+    'Viluppuram': 'विलुप्पुरम',
+    'Virudhunagar': 'विरुद्धनगर',
+    'Tamil Nadu': 'तमिलनाडु',
+    'All Tamil Nadu (Statewide)': 'पूरा तमिलनाडु (राज्यव्यापी)',
+    'All Tamil Nadu': 'पूरा तमिलनाडु',
+
+    // Regional Skills & Industrial Trades
+    'Offset Printing Machine Operator & Color Matcher': 'ऑफसेट प्रिंटिंग ऑपरेटर और रंग मिलान',
+    'Offset Printing Machine Operator': 'ऑफसेट प्रिंटिंग मशीन ऑपरेटर',
+    'Color Matching & Quality Inspection': 'रंग मिलान और गुणवत्ता निरीक्षण',
+    'Safety Matchbox & Carton Assembly Packaging Hand': 'माचिस और कार्टन असेंबली पैकेजिंग सहायक',
+    'Carton Packing & Assembly': 'कार्टन पैकिंग और असेंबली',
+    'Industrial AC & Ventilation Maintenance Technician': 'औद्योगिक एसी और वेंटिलेशन रखरखाव तकनीशियन',
+    'Air-conditioner servicing technician': 'एयर कंडीशनर सर्विसिंग तकनीशियन',
+    'Electrical safety': 'विद्युत सुरक्षा',
+    'Local Express Delivery Rider (Sivakasi Town & Thiruthangal)': 'स्थानीय एक्सप्रेस डिलीवरी राइडर (शिवकाशी और थिरुथंगल)',
+    'Retail Stationery Billing & Inventory Assistant': 'स्टेशनरी बिलिंग और स्टॉक सहायक',
+    'Offset Printing Darkroom Plate Maker & Assistant': 'ऑफसेट प्रिंटिंग डार्करूम प्लेट मेकर और सहायक',
+    'Quality Inspection': 'गुणवत्ता निरीक्षण',
+    'Sattur Road Printing Zone, Sivakasi': 'सत्तूर रोड प्रिंटिंग जोन, शिवकाशी',
+    'Sattur Road Printing Zone': 'सत्तूर रोड प्रिंटिंग जोन',
+    'Near Sivakasi New Bus Stand, Sivakasi': 'शिवकाशी नए बस स्टैंड के पास',
+    'Near Sivakasi New Bus Stand': 'शिवकाशी नए बस स्टैंड के पास',
+    'Sivakasi Fireworks & Printing Hub, Sivakasi': 'शिवकाशी आतिशबाजी और प्रिंटिंग हब',
+    'Sivakasi Fireworks & Printing Hub': 'शिवकाशी आतिशबाजी और प्रिंटिंग हब',
+    'Thiruthangal Road, Sivakasi': 'थिरुथंगल रोड, शिवकाशी',
+    'Thiruthangal Road': 'थिरुथंगल रोड',
+    'Car Street Wholesale Market, Sivakasi': 'कार स्ट्रीट थोक बाजार, शिवकाशी',
+    'Car Street Wholesale Market': 'कार स्ट्रीट थोक बाजार',
+
     // Skills
     'Driving': 'ड्राइविंग',
     'Tamil Speaking': 'तमिल बोलना',
@@ -1554,6 +2858,89 @@ const CONTENT_TRANSLATIONS: Record<Language, Record<string, string>> = {
   },
 
   te: {
+    // Tamil Nadu Districts & Key Cities
+    'Sivakasi': 'శివకాశి',
+    'Chennai': 'చెన్నై',
+    'Coimbatore': 'కోయంబత్తూర్',
+    'Madurai': 'మధురై',
+    'Tiruchirappalli (Trichy)': 'తిరుచిరాపల్లి (త్రిచీ)',
+    'Tiruchirappalli': 'తిరుచిరాపల్లి',
+    'Trichy': 'త్రిచీ',
+    'Salem': 'సేలం',
+    'Tirunelveli': 'తిరునెల్వేలి',
+    'Vellore': 'వెల్లూరు',
+    'Tiruppur': 'తిరుప్పూర్',
+    'Erode': 'ఈరోడ్',
+    'Thanjavur': 'తంజావూరు',
+    'Thoothukudi (Tuticorin)': 'తూత్తుకుడి',
+    'Thoothukudi': 'తూత్తుకుడి',
+    'Tuticorin': 'తూత్తుకుడి',
+    'Kanyakumari (Nagercoil)': 'కన్యాకుమారి (నాగర్‌కోయిల్)',
+    'Kanyakumari': 'కన్యాకుమారి',
+    'Nagercoil': 'నాగర్‌కోయిల్',
+    'Ariyalur': 'అరియలూర్',
+    'Chengalpattu': 'చెంగల్పట్టు',
+    'Cuddalore': 'కడలూరు',
+    'Dharmapuri': 'ధర్మపురి',
+    'Dindigul': 'దిండిగల్',
+    'Hosur': 'హోసూరు',
+    'Kallakurichi': 'కళ్లకురిచి',
+    'Kanchipuram': 'కాంచీపురం',
+    'Karaikudi': 'కారైకుడి',
+    'Karur': 'కరూర్',
+    'Kodaikanal': 'కొడైకెనాల్',
+    'Krishnagiri': 'కృష్ణగిరి',
+    'Kumbakonam': 'కుంభకోణం',
+    'Mayiladuthurai': 'మయిలాడుదురై',
+    'Nagapattinam': 'నాగపట్నం',
+    'Namakkal': 'నమక్కల్',
+    'Neyveli': 'నెయ్‌వేలి',
+    'Nilgiris (Ooty)': 'నీలగిరి (ఊటీ)',
+    'Nilgiris': 'నీలగిరి',
+    'Ooty': 'ఊటీ',
+    'Perambalur': 'పెరంబలూరు',
+    'Pollachi': 'పొల్లాచి',
+    'Pudukkottai': 'పుదుక్కోట్టై',
+    'Ramanathapuram': 'రామనాథపురం',
+    'Rameswaram': 'రామేశ్వరం',
+    'Ranipet': 'రాణిపేట',
+    'Sivaganga': 'శివగంగ',
+    'Tenkasi': 'తెనకాశి',
+    'Theni': 'తేని',
+    'Tirupathur': 'తిరుపత్తూరు',
+    'Tiruvallur': 'తిరువళ్లూరు',
+    'Tiruvannamalai': 'తిరువణ్ణామలై',
+    'Tiruvarur': 'తిరువారూరు',
+    'Viluppuram': 'విలుప్పురం',
+    'Virudhunagar': 'విరుదునగర్',
+    'Tamil Nadu': 'తమిళనాడు',
+    'All Tamil Nadu (Statewide)': 'మొత్తం తమిళనాడు (రాష్ట్రవ్యాప్త)',
+    'All Tamil Nadu': 'మొత్తం తమిళనాడు',
+
+    // Regional Skills & Industrial Trades
+    'Offset Printing Machine Operator & Color Matcher': 'ఆఫ్‌సెట్ ప్రింటింగ్ ఆపరేటర్ మరియు కలర్ మ్యాచింగ్',
+    'Offset Printing Machine Operator': 'ఆఫ్‌సెట్ ప్రింటింగ్ మెషిన్ ఆపరేటర్',
+    'Color Matching & Quality Inspection': 'రంగు సరిపోలిక & నాణ్యత తనిఖీ',
+    'Safety Matchbox & Carton Assembly Packaging Hand': 'అగ్గిపెట్టె & కార్టన్ ప్యాకింగ్ సహాయకుడు',
+    'Carton Packing & Assembly': 'కార్టన్ ప్యాకింగ్ మరియు అసెంబ్లీ',
+    'Industrial AC & Ventilation Maintenance Technician': 'పారిశ్రామిక ఏసీ & వెంటిలేషన్ నిర్వహణ టెక్నీషియన్',
+    'Air-conditioner servicing technician': 'ఎయిర్ కండీషనర్ సర్వీసింగ్ టెక్నీషియన్',
+    'Electrical safety': 'ఎలక్ట్రికల్ భద్రత',
+    'Local Express Delivery Rider (Sivakasi Town & Thiruthangal)': 'లోకల్ ఎక్స్‌ప్రెస్ డెలివరీ రైడర్ (శివకాశి & తిరుతంగల్)',
+    'Retail Stationery Billing & Inventory Assistant': 'స్టేషనరీ బిల్లింగ్ & స్టాక్ సహాయకుడు',
+    'Offset Printing Darkroom Plate Maker & Assistant': 'ఆఫ్‌సెట్ ప్రింటింగ్ డార్క్‌రూమ్ ప్లేట్ మేకర్',
+    'Quality Inspection': 'నాణ్యత తనిఖీ',
+    'Sattur Road Printing Zone, Sivakasi': 'సాత్తూరు రోడ్ ప్రింటింగ్ జోన్, శివకాశి',
+    'Sattur Road Printing Zone': 'సాత్తూరు రోడ్ ప్రింటింగ్ జోన్',
+    'Near Sivakasi New Bus Stand, Sivakasi': 'శివకాశి కొత్త బస్ స్టాండ్ సమీపంలో',
+    'Near Sivakasi New Bus Stand': 'శివకాశి కొత్త బస్ స్టాండ్ సమీపంలో',
+    'Sivakasi Fireworks & Printing Hub, Sivakasi': 'శివకాశి బాణాసంచా & ప్రింటింగ్ హబ్',
+    'Sivakasi Fireworks & Printing Hub': 'శివకాశి బాణాసంచా & ప్రింటింగ్ హబ్',
+    'Thiruthangal Road, Sivakasi': 'తిరుతంగల్ రోడ్, శివకాశి',
+    'Thiruthangal Road': 'తిరుతంగల్ రోడ్',
+    'Car Street Wholesale Market, Sivakasi': 'కార్ స్ట్రీట్ హోల్‌సేల్ మార్కెట్, శివకాశి',
+    'Car Street Wholesale Market': 'కార్ స్ట్రీట్ హోల్‌సేల్ మార్కెట్',
+
     // Skills
     'Driving': 'డ్రైవింగ్',
     'Tamil Speaking': 'తమిళం మాట్లాడటం',
@@ -1650,49 +3037,85 @@ const CONTENT_TRANSLATIONS: Record<Language, Record<string, string>> = {
 
 export const localizeContent = (value: string | undefined | null, language: Language): string => {
   if (!value) return '';
-  if (language === 'en') return value;
-  
-  const dict = CONTENT_TRANSLATIONS[language];
-  if (!dict) return value;
 
-  // 1. Direct exact lookup
-  if (dict[value]) {
-    return dict[value];
-  }
-
-  // 2. Case-insensitive lookup
   const valTrimmed = value.trim();
-  const valLower = valTrimmed.toLowerCase();
-  for (const [key, translated] of Object.entries(dict)) {
-    if (key.toLowerCase().trim() === valLower) {
-      return translated;
-    }
+  let sourceLang = detectLanguageFromScript(valTrimmed);
+  const containsIndic = hasIndicCharacters(valTrimmed);
+
+  if (sourceLang === 'en' && containsIndic) {
+    sourceLang = detectLanguageFromScript(valTrimmed);
+    if (sourceLang === 'en') sourceLang = 'te';
   }
 
-  // 3. Smart multi-word & token pattern replacement for custom user-created gigs
-  let translatedResult = value;
-  let hasReplaced = false;
+  // If source and target are identical and target is not English with Indic chars, return immediately
+  if (sourceLang === language && (language !== 'en' || !containsIndic)) {
+    return value;
+  }
 
-  // Sort dictionary keys by length descending so multi-word phrases match before single words
-  const sortedEntries = Object.entries(dict).sort((a, b) => b[0].length - a[0].length);
-
-  for (const [key, translated] of sortedEntries) {
-    if (key.length > 2 && translatedResult.toLowerCase().includes(key.toLowerCase())) {
-      const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const regex = new RegExp(`\\b${escapeRegex(key)}\\b`, 'gi');
-      if (regex.test(translatedResult)) {
-        translatedResult = translatedResult.replace(regex, translated);
-        hasReplaced = true;
+  // 1. Check direct English -> Target lookup in CONTENT_TRANSLATIONS
+  if (sourceLang === 'en' && !containsIndic && language !== 'en') {
+    const dict = CONTENT_TRANSLATIONS[language];
+    if (dict) {
+      if (dict[value]) return dict[value];
+      const valLower = valTrimmed.toLowerCase();
+      for (const [key, translated] of Object.entries(dict)) {
+        if (key.toLowerCase().trim() === valLower) {
+          return translated;
+        }
       }
     }
   }
 
-  if (hasReplaced) {
-    return translatedResult;
+  // 2. Check reverse Non-English -> English / Third Language lookup in CONTENT_TRANSLATIONS
+  if (sourceLang !== 'en' || containsIndic) {
+    const effectiveSrc = sourceLang !== 'en' ? sourceLang : 'te';
+    const srcDict = CONTENT_TRANSLATIONS[effectiveSrc];
+    if (srcDict) {
+      for (const [enKey, foreignVal] of Object.entries(srcDict)) {
+        if (foreignVal.trim().toLowerCase() === valTrimmed.toLowerCase()) {
+          if (language === 'en') {
+            return enKey;
+          }
+          const targetDict = CONTENT_TRANSLATIONS[language];
+          if (targetDict && targetDict[enKey]) {
+            return targetDict[enKey];
+          }
+        }
+      }
+    }
   }
 
-  // 4. Dynamic Auto-Translation Engine Fallback for any user-entered text
-  return autoTranslateString(value, language);
+  // 3. Dynamic Any-to-Any Live Gemini Translation Engine with instant memory cache
+  const effectiveSrc = (sourceLang === 'en' && containsIndic) ? 'te' : sourceLang;
+  const instantResult = getInstantOrPrefetch(value, language, effectiveSrc);
+  if (instantResult && (language !== 'en' || !hasIndicCharacters(instantResult))) {
+    return instantResult;
+  }
+
+  // 4. Dynamic Any-to-Any Auto-Translation Engine Fallback
+  const autoResult = autoTranslateString(value, language, effectiveSrc);
+
+  // Trigger background online translation if in browser to cache for instant future loads
+  if (typeof window !== 'undefined' && (autoResult === value || (language === 'en' && hasIndicCharacters(autoResult)))) {
+    prefetchDynamicTranslation(value, language, effectiveSrc).catch(() => {});
+  }
+
+  return autoResult || value;
+};
+
+export const getLocalizedJobText = (
+  job: Job | undefined | null,
+  field: 'title' | 'description' | 'category' | 'landmark_area',
+  language: Language
+): string => {
+  if (!job) return '';
+  if (job.translations && job.translations[field] && job.translations[field]?.[language]) {
+    const val = job.translations[field]![language]!;
+    if (language !== 'en' || !hasIndicCharacters(val)) {
+      return val;
+    }
+  }
+  return localizeContent(job[field], language);
 };
 
 export const ALL_SKILL_OPTIONS = [
@@ -1720,9 +3143,31 @@ export const ALL_SKILL_OPTIONS = [
   'Food Serving',
   'Kitchen Helper',
   'Electrician Basics',
+  'Electrical & Wiring',
+  'Switchboard Repair',
+  'CCTV Installation',
   'Plumbing',
+  'Pipe Repair',
+  'Pipe Leakage Repair',
   'Carpentry',
+  'Furniture Repair',
+  'Painting',
+  'Wall Painting',
+  'Primer Application',
+  'Mechanic',
+  'Two Wheeler Repair',
+  'Vehicle Maintenance',
+  'Appliance Maintenance',
+  'AC Repair',
+  'Air Conditioner Servicing',
   'AC Maintenance',
+  'AC Gas Filling',
+  'Fridge Repair',
+  'Refrigerator Repair',
+  'TV Repair',
+  'Television & Electronics',
+  'Washing Machine Repair',
+  'RO & Water Purifier Service',
   'Tailoring',
   'Cleaning & Housekeeping',
   'Gardening',
@@ -1733,18 +3178,23 @@ export const ALL_SKILL_OPTIONS = [
 ];
 
 export const CATEGORIES = [
-  'Delivery',
-  'Store Helper',
-  'Data Entry',
-  'Event Hand',
-  'Tutoring',
+  'Appliance Repair',
   'Electrical',
   'Plumbing',
+  'Mechanic',
+  'Painting',
+  'Carpentry',
+  'Delivery',
+  'Driver',
+  'Store Helper',
+  'Data Entry',
   'Catering & Cooking',
+  'Housekeeping',
+  'Event Hand',
+  'Tutoring',
   'Logistics & Loading',
   'Healthcare Assistant',
-  'Security & Guard',
-  'Housekeeping'
+  'Security & Guard'
 ];
 
 export const TIME_SLOT_OPTIONS = [

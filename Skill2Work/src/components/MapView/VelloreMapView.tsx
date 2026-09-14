@@ -2,7 +2,7 @@ import React, { useEffect, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Circle, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import type { Job, User, VelloreLocation } from '../../types';
-import { formatDistance, VELLORE_DEFAULT_CENTER } from '../../services/geoService';
+import { formatDistance, TAMIL_NADU_DEFAULT_CENTER } from '../../services/geoService';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { localizeContent } from '../../i18n/translations';
 import { 
@@ -48,6 +48,7 @@ interface VelloreMapViewProps {
   selectedJobId?: string | null;
   onSelectJob?: (job: Job) => void;
   onClaimJob?: (jobId: string) => void;
+  onGetDirections?: (job: Job) => void;
   selectableLocation?: boolean;
   selectedCoordinates?: { lat: number; lng: number } | null;
   onSelectCoordinates?: (lat: number, lng: number) => void;
@@ -61,6 +62,7 @@ export const VelloreMapView: React.FC<VelloreMapViewProps> = ({
   selectedJobId,
   onSelectJob,
   onClaimJob,
+  onGetDirections,
   selectableLocation = false,
   selectedCoordinates,
   onSelectCoordinates,
@@ -75,7 +77,7 @@ export const VelloreMapView: React.FC<VelloreMapViewProps> = ({
     if (user && user.latitude && user.longitude) {
       return [user.latitude, user.longitude];
     }
-    return [VELLORE_DEFAULT_CENTER.lat, VELLORE_DEFAULT_CENTER.lng];
+    return [TAMIL_NADU_DEFAULT_CENTER.lat, TAMIL_NADU_DEFAULT_CENTER.lng];
   }, [user, selectedCoordinates]);
 
   // Create custom Seeker Beacon HTML Icon
@@ -101,21 +103,35 @@ export const VelloreMapView: React.FC<VelloreMapViewProps> = ({
     const isClaimed = job.status === 'CLAIMED';
     const isCompleted = job.status === 'COMPLETED';
 
-    let bgClass = 'bg-sky-500 text-white border-white';
-    if (isCompleted) bgClass = 'bg-slate-700 text-white border-slate-500';
-    else if (isClaimedByMe) bgClass = 'bg-sky-600 text-white border-white ring-4 ring-sky-400/40';
-    else if (isClaimed) bgClass = 'bg-slate-500 text-white border-slate-300';
-    else if (job.matchScore && job.matchScore >= 80) bgClass = 'bg-sky-500 text-white border-white shadow-sky-500/50';
+    let bgBg = 'bg-sky-500';
+    let bgBorder = 'border-white';
+    let extra = '';
+
+    if (isCompleted) {
+      bgBg = 'bg-slate-700';
+      bgBorder = 'border-slate-500';
+    } else if (isClaimedByMe) {
+      bgBg = 'bg-sky-600';
+      bgBorder = 'border-white';
+      extra = 'ring-4 ring-sky-400/40';
+    } else if (isClaimed) {
+      bgBg = 'bg-slate-500';
+      bgBorder = 'border-slate-300';
+    } else if (job.matchScore && job.matchScore >= 80) {
+      bgBg = 'bg-sky-500';
+      bgBorder = 'border-white';
+      extra = 'shadow-sky-500/50';
+    }
 
     return L.divIcon({
       className: 'custom-job-icon',
       html: `
         <div class="relative group cursor-pointer transition-transform hover:scale-110 ${isSelected ? 'scale-125 z-50' : ''}">
-          <div class="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold shadow-md border-2 ${bgClass}">
+          <div class="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold shadow-md border-2 ${bgBg} text-white ${bgBorder} ${extra}">
             <span>₹${job.payout_amount}</span>
             ${job.matchScore ? `<span class="opacity-90 text-[10px]">(${job.matchScore}%)</span>` : ''}
           </div>
-          <div class="w-2 h-2 mx-auto rotate-45 -mt-1 ${bgClass.split(' ')[0]} border-r-2 border-b-2 ${bgClass.split(' ')[2]}"></div>
+          <div class="w-2 h-2 mx-auto rotate-45 -mt-1 ${bgBg} border-r-2 border-b-2 ${bgBorder}"></div>
         </div>
       `,
       iconSize: [64, 32],
@@ -163,6 +179,14 @@ export const VelloreMapView: React.FC<VelloreMapViewProps> = ({
       {selectableLocation && (
         <div className="absolute bottom-4 left-4 right-4 z-[1000] bg-white/95 backdrop-blur-md p-3 rounded-xl border border-sky-300 text-sky-800 text-xs font-semibold text-center shadow-lg">
           👉 {t.clickMapInstruction}
+        </div>
+      )}
+
+      {/* Offline Radar Mode Banner */}
+      {typeof navigator !== 'undefined' && !navigator.onLine && (
+        <div className="absolute top-4 right-4 z-[1000] bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-amber-500/40 text-amber-300 text-xs font-bold flex items-center gap-1.5 shadow-lg select-none pointer-events-none">
+          <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+          <span>Offline Radar Mode (Local Pins & Radius Active)</span>
         </div>
       )}
 
@@ -292,9 +316,21 @@ export const VelloreMapView: React.FC<VelloreMapViewProps> = ({
                     )}
 
                     {job.status === 'CLAIMED' && (
-                      <span className="text-[10px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">
-                        {job.claimed_by === user?.id ? t.claimedBadge : t.claimedOtherBadge}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">
+                          {job.claimed_by === user?.id ? t.claimedBadge : t.claimedOtherBadge}
+                        </span>
+                        {job.claimed_by === user?.id && onGetDirections && (
+                          <button
+                            onClick={() => onGetDirections(job)}
+                            className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-sky-500 hover:bg-sky-600 text-white flex items-center gap-1 cursor-pointer"
+                            title={t.directionsBtn}
+                          >
+                            <Navigation className="w-2.5 h-2.5" />
+                            <span>{t.directionsBtn}</span>
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>

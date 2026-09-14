@@ -2,11 +2,13 @@ import React from 'react';
 import { 
   Radio, 
   MapPin, 
-  SlidersHorizontal
+  SlidersHorizontal,
+  Navigation,
+  ChevronDown
 } from 'lucide-react';
 import { useLanguage } from '../../i18n/LanguageContext';
 import type { User } from '../../types';
-import { getClosestLandmark } from '../../services/geoService';
+import { getClosestLandmark, TAMIL_NADU_CITIES } from '../../services/geoService';
 import { localizeContent } from '../../i18n/translations';
 
 interface RadiusFilterProps {
@@ -15,6 +17,9 @@ interface RadiusFilterProps {
   currentUser: User | null;
   onOpenProfile: () => void;
   matchedCount: number;
+  onCitySelect?: (cityName: string) => void;
+  onLiveGpsClick?: () => void;
+  isLocating?: boolean;
 }
 
 const PRESET_DISTANCES = [1, 2, 3, 5, 10];
@@ -24,13 +29,16 @@ export const RadiusFilter: React.FC<RadiusFilterProps> = ({
   onRadiusChange,
   currentUser,
   onOpenProfile,
-  matchedCount
+  matchedCount,
+  onCitySelect,
+  onLiveGpsClick,
+  isLocating = false
 }) => {
   const { t, language } = useLanguage();
 
   const currentLandmark = currentUser
     ? getClosestLandmark(currentUser.latitude, currentUser.longitude)
-    : 'Katpadi, Vellore';
+    : 'Chennai, Tamil Nadu';
 
   return (
     <div className="glass-panel rounded-2xl p-4 sm:p-5 mb-6 border border-slate-200 relative overflow-hidden shadow-sm bg-white">
@@ -48,7 +56,7 @@ export const RadiusFilter: React.FC<RadiusFilterProps> = ({
             <div className="absolute inset-0 rounded-2xl border border-sky-300 animate-radar-ping pointer-events-none"></div>
           </div>
 
-          <div>
+          <div className="space-y-1">
             <div className="flex items-center gap-2">
               <h2 className="font-heading text-base sm:text-lg font-bold text-slate-900">
                 {t.radarHeading}
@@ -58,13 +66,45 @@ export const RadiusFilter: React.FC<RadiusFilterProps> = ({
               </span>
             </div>
 
-            {/* Current user location pill */}
-            <div className="flex items-center gap-1.5 text-xs text-slate-600 mt-0.5">
-              <MapPin className="w-3.5 h-3.5 text-sky-500 shrink-0" />
-              <span className="font-semibold text-slate-900">{localizeContent(currentLandmark, language)}</span>
+            {/* Current user location pill & City selector */}
+            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
+              <div className="flex items-center gap-1">
+                <MapPin className="w-3.5 h-3.5 text-sky-500 shrink-0" />
+                <span className="font-semibold text-slate-900">{localizeContent(currentLandmark, language)}</span>
+              </div>
+
+              {onCitySelect && (
+                <div className="relative inline-flex items-center">
+                  <select
+                    value={currentUser?.city || 'Chennai'}
+                    onChange={(e) => onCitySelect(e.target.value)}
+                    className="appearance-none bg-slate-100 hover:bg-slate-200/70 border border-slate-200 text-slate-800 text-[11px] font-bold py-1 pl-2.5 pr-6 rounded-lg cursor-pointer focus:outline-none focus:ring-1 focus:ring-sky-500 transition-colors"
+                  >
+                    {TAMIL_NADU_CITIES.map((c) => (
+                      <option key={c.id} value={c.name}>
+                        {localizeContent(c.name, language)}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="w-3 h-3 text-slate-500 absolute right-1.5 pointer-events-none" />
+                </div>
+              )}
+
+              {onLiveGpsClick && (
+                <button
+                  type="button"
+                  onClick={onLiveGpsClick}
+                  disabled={isLocating}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 transition-colors shadow-xs"
+                >
+                  <Navigation className={`w-3 h-3 ${isLocating ? 'animate-spin' : ''}`} />
+                  <span>{isLocating ? t.locating : t.useCurrentGps}</span>
+                </button>
+              )}
+
               <button
                 onClick={onOpenProfile}
-                className="text-sky-600 hover:text-sky-700 font-semibold underline underline-offset-2 ml-1"
+                className="text-sky-600 hover:text-sky-700 font-semibold underline underline-offset-2"
               >
                 {t.changeLocation}
               </button>
@@ -100,11 +140,11 @@ export const RadiusFilter: React.FC<RadiusFilterProps> = ({
               );
             })}
 
-            {/* All Vellore option */}
+            {/* All Tamil Nadu option */}
             <button
-              onClick={() => onRadiusChange(25)}
+              onClick={() => onRadiusChange(500)}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
-                radiusKm >= 20
+                radiusKm >= 25
                   ? 'bg-sky-500 text-white shadow-sm'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
               }`}
@@ -119,14 +159,14 @@ export const RadiusFilter: React.FC<RadiusFilterProps> = ({
             <input
               type="range"
               min="0.5"
-              max="15"
+              max="25"
               step="0.5"
-              value={radiusKm > 15 ? 15 : radiusKm}
+              value={radiusKm > 25 ? 25 : radiusKm}
               onChange={(e) => onRadiusChange(parseFloat(e.target.value))}
               className="w-20 sm:w-24 accent-sky-500 cursor-pointer"
             />
             <span className="font-extrabold text-sky-600 min-w-[40px] text-right">
-              {radiusKm >= 20 ? '25 km' : `${radiusKm} km`}
+              {radiusKm >= 25 ? 'Statewide' : `${radiusKm} km`}
             </span>
           </div>
 

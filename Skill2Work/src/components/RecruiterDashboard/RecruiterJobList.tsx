@@ -8,13 +8,16 @@ import {
   Phone, 
   MessageSquare, 
   Trash2, 
-  Plus,
-  Star
+  Star,
+  CreditCard
 } from 'lucide-react';
 import type { Job, User } from '../../types';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { localizeContent } from '../../i18n/translations';
 import { triggerOfflineSms } from '../../utils/smsHelper';
+import { ReliabilityBadge } from '../common/ReliabilityBadge';
+import { reliabilityService } from '../../services/reliabilityService';
+import { sqliteManager } from '../../db/sqliteManager';
 
 interface RecruiterJobListProps {
   jobs: Job[];
@@ -23,6 +26,7 @@ interface RecruiterJobListProps {
   onUpdateStatus: (jobId: string, status: 'OPEN' | 'CLAIMED' | 'COMPLETED') => void;
   onDeleteJob: (jobId: string) => void;
   onOpenReviewModal?: (job: Job) => void;
+  onOpenPayModal?: (job: Job) => void;
 }
 
 export const RecruiterJobList: React.FC<RecruiterJobListProps> = ({
@@ -31,7 +35,8 @@ export const RecruiterJobList: React.FC<RecruiterJobListProps> = ({
   onOpenPostModal,
   onUpdateStatus,
   onDeleteJob,
-  onOpenReviewModal
+  onOpenReviewModal,
+  onOpenPayModal
 }) => {
   const { t, language } = useLanguage();
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'OPEN' | 'CLAIMED' | 'COMPLETED'>('ALL');
@@ -89,18 +94,10 @@ export const RecruiterJobList: React.FC<RecruiterJobListProps> = ({
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              {tab === 'ALL' ? t.allGigsFilter : tab === 'OPEN' ? t.statusOpen : tab === 'CLAIMED' ? t.statusClaimed : t.statusCompleted}
+              {tab === 'ALL' ? t.allGigsFilter : tab === 'OPEN' ? t.statusOpen : tab === 'CLAIMED' ? t.statusClaimed : (t.paidStatus || 'Paid')}
             </button>
           ))}
         </div>
-
-        <button
-          onClick={onOpenPostModal}
-          className="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-600 hover:to-sky-700 text-white shadow-md shadow-sky-500/20 flex items-center justify-center gap-1.5 transition-all"
-        >
-          <Plus className="w-4 h-4" />
-          <span>{t.postNewGigBtn}</span>
-        </button>
       </div>
 
       {/* Gigs List */}
@@ -109,6 +106,7 @@ export const RecruiterJobList: React.FC<RecruiterJobListProps> = ({
           {filteredJobs.map((job) => {
             const isClaimed = job.status === 'CLAIMED';
             const isCompleted = job.status === 'COMPLETED';
+            const isPaid = job.payment_status === 'PAID' || Boolean(job.payment_transaction_id) || sqliteManager.isJobPaid(job.id);
 
             const claimantPhone = job.claimed_by_phone || '+91 98401 23456';
             const claimantName = job.claimed_by_name || 'Vellore Gig Seeker';
@@ -142,16 +140,24 @@ export const RecruiterJobList: React.FC<RecruiterJobListProps> = ({
                     <span className={`px-3 py-1 rounded-xl text-xs font-extrabold border ${
                       job.status === 'OPEN'
                         ? 'bg-sky-50 text-sky-700 border-sky-200'
+                        : isPaid
+                        ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
                         : isClaimed
-                        ? 'bg-slate-100 text-slate-700 border-slate-200'
-                        : 'bg-slate-100 text-slate-500 border-slate-200'
+                        ? 'bg-sky-50 text-sky-700 border-sky-200'
+                        : 'bg-emerald-50 text-emerald-800 border-emerald-200'
                     }`}>
-                      {job.status === 'OPEN' ? t.statusOpen : isClaimed ? t.statusClaimed : t.statusCompleted}
+                      {job.status === 'OPEN' 
+                        ? t.statusOpen 
+                        : isPaid 
+                        ? (t.paidStatus || 'Paid') 
+                        : isClaimed 
+                        ? t.statusClaimed 
+                        : (t.paymentCompleted || 'Payment Completed')}
                     </span>
 
                     <button
                       onClick={() => onDeleteJob(job.id)}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
                       title={t.deleteGigBtn}
                     >
                       <Trash2 className="w-4 h-4" />
@@ -192,15 +198,23 @@ export const RecruiterJobList: React.FC<RecruiterJobListProps> = ({
                         </div>
                         <div>
                           <div className="text-[11px] text-sky-700 font-bold uppercase tracking-wider">{t.claimantDetails}</div>
-                          <div className="font-bold text-slate-900 text-sm">{claimantName}</div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <div className="font-bold text-slate-900 text-sm">{claimantName}</div>
+                            {job.claimed_by && (
+                              <ReliabilityBadge 
+                                metrics={reliabilityService.getWorkerReliability(job.claimed_by)} 
+                                compact 
+                              />
+                            )}
+                          </div>
                           <div className="text-xs text-slate-500">{claimantPhone}</div>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <button
                           onClick={() => window.open(`tel:${claimantPhone}`, '_self')}
-                          className="px-3 py-1.5 rounded-lg text-xs font-bold bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 flex items-center gap-1 shadow-xs"
+                          className="px-3 py-1.5 rounded-lg text-xs font-bold bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 flex items-center gap-1 shadow-xs cursor-pointer"
                         >
                           <Phone className="w-3.5 h-3.5 text-sky-600" />
                           <span>{t.callClaimantBtn}</span>
@@ -209,10 +223,10 @@ export const RecruiterJobList: React.FC<RecruiterJobListProps> = ({
                         <button
                           onClick={() => {
                             const cleanPhone = claimantPhone.replace(/[^0-9]/g, '');
-                            const msg = encodeURIComponent(`Hello ${claimantName}, regarding your application for "${localizedTitle}" on Skill2Work.`);
+                            const msg = encodeURIComponent(`Hello ${claimantName}, regarding your application for "${localizedTitle}" on Talent2Task.`);
                             window.open(`https://wa.me/${cleanPhone}?text=${msg}`, '_blank');
                           }}
-                          className="px-3 py-1.5 rounded-lg text-xs font-bold bg-sky-500 hover:bg-sky-600 text-white flex items-center gap-1 shadow-xs"
+                          className="px-3 py-1.5 rounded-lg text-xs font-bold bg-sky-500 hover:bg-sky-600 text-white flex items-center gap-1 shadow-xs cursor-pointer"
                         >
                           <MessageSquare className="w-3.5 h-3.5" />
                           <span>{t.whatsappClaimantBtn}</span>
@@ -221,20 +235,44 @@ export const RecruiterJobList: React.FC<RecruiterJobListProps> = ({
                         <button
                           type="button"
                           onClick={() => {
-                            const smsMsg = `Hi ${claimantName}, regarding your application for "${localizedTitle}" on Skill2Work. I have accepted your request. Please contact me!`;
+                            const smsMsg = `Hi ${claimantName}, regarding your application for "${localizedTitle}" on Talent2Task. I have accepted your request. Please contact me!`;
                             triggerOfflineSms(claimantPhone, smsMsg);
                           }}
-                          className="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white flex items-center gap-1 shadow-xs transition-all active:scale-95"
+                          className="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white flex items-center gap-1 shadow-xs transition-all active:scale-95 cursor-pointer"
                           title="Send Offline SMS text message"
                         >
                           <MessageSquare className="w-3.5 h-3.5" />
                           <span>Offline SMS</span>
                         </button>
 
-                        {isClaimed && (
+                        {/* Pay Now Button / Completed Payment Button */}
+                        {!isPaid && onOpenPayModal ? (
+                          <button
+                            type="button"
+                            onClick={() => onOpenPayModal(job)}
+                            className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white flex items-center gap-1.5 shadow-md shadow-emerald-600/30 active:scale-95 transition-all cursor-pointer"
+                            style={{ backgroundColor: '#059669', color: '#ffffff' }}
+                            title="Pay seeker for this gig"
+                          >
+                            <CreditCard className="w-3.5 h-3.5" />
+                            <span>{t.payNowBtn || 'Pay Now'}</span>
+                          </button>
+                        ) : isPaid ? (
+                          <button
+                            type="button"
+                            onClick={() => onOpenPayModal && onOpenPayModal(job)}
+                            className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-300 hover:bg-emerald-100 flex items-center gap-1.5 shadow-2xs opacity-95 transition-all cursor-pointer select-none"
+                            title="Payment has been completed — click to view receipt"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Completed Payment</span>
+                          </button>
+                        ) : null}
+
+                        {isClaimed && !isPaid && (
                           <button
                             onClick={() => onUpdateStatus(job.id, 'COMPLETED')}
-                            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white flex items-center gap-1 shadow-xs"
+                            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white flex items-center gap-1 shadow-xs cursor-pointer"
                           >
                             <CheckCircle2 className="w-3.5 h-3.5" />
                             <span>{t.markCompletedBtn}</span>
@@ -244,7 +282,7 @@ export const RecruiterJobList: React.FC<RecruiterJobListProps> = ({
                         {isCompleted && onOpenReviewModal && (
                           <button
                             onClick={() => onOpenReviewModal(job)}
-                            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white flex items-center gap-1 shadow-xs"
+                            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white flex items-center gap-1 shadow-xs cursor-pointer"
                           >
                             <Star className="w-3.5 h-3.5 fill-current" />
                             <span>{t.rateClaimantBtn}</span>

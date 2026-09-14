@@ -221,7 +221,7 @@ export const DeviceSyncModal: React.FC<DeviceSyncModalProps> = ({
                 <span>Instant Multi-Device Testing:</span>
               </div>
               <p className="text-xs text-slate-300 leading-relaxed">
-                1. Point your <strong>Mobile Phone Camera</strong> at this QR code to open Skill2Work on your smartphone.<br />
+                1. Point your <strong>Mobile Phone Camera</strong> at this QR code to open Talent2Task on your smartphone.<br />
                 2. On your <strong>Laptop</strong>, post a new gig as a Recruiter.<br />
                 3. Watch your <strong>Mobile Phone</strong> instantly play the audio radar chime, pop up the live alert, and show the gig simultaneously!
               </p>

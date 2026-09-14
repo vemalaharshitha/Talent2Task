@@ -76,7 +76,7 @@ export const FeedbackRatingModal: React.FC<FeedbackRatingModalProps> = ({
       to_user_id: targetUserId,
       rating,
       tags: selectedTags,
-      comment: comment.trim() || 'Work completed seamlessly on Skill2Work.'
+      comment: comment.trim() || 'Work completed seamlessly on Talent2Task.'
     });
     onClose();
   };

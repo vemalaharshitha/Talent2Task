@@ -5,7 +5,8 @@ import {
   MapPin, 
   Navigation, 
   Phone, 
-  MessageSquare
+  MessageSquare,
+  CheckCircle2
 } from 'lucide-react';
 import { formatDistance } from '../../services/geoService';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -18,13 +19,15 @@ interface MyClaimedJobsProps {
   currentUser: User;
   onViewDetails: (job: Job) => void;
   onExploreGigs: () => void;
+  onGetDirections?: (job: Job) => void;
 }
 
 export const MyClaimedJobs: React.FC<MyClaimedJobsProps> = ({
   jobs,
   currentUser,
   onViewDetails,
-  onExploreGigs
+  onExploreGigs,
+  onGetDirections
 }) => {
   const { t, language } = useLanguage();
 
@@ -44,7 +47,7 @@ export const MyClaimedJobs: React.FC<MyClaimedJobsProps> = ({
         </p>
         <button
           onClick={onExploreGigs}
-          className="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-sky-500 hover:bg-sky-600 text-white shadow-md shadow-sky-500/20 transition-all"
+          className="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-sky-500 hover:bg-sky-600 text-white shadow-md shadow-sky-500/20 transition-all cursor-pointer"
         >
           {t.allGigsTab}
         </button>
@@ -69,6 +72,7 @@ export const MyClaimedJobs: React.FC<MyClaimedJobsProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {myClaimed.map((job) => {
           const isCompleted = job.status === 'COMPLETED';
+          const isPaid = job.payment_status === 'PAID' || (isCompleted && job.payment_transaction_id);
           const recruiterObj = sqliteManager.getUserById(job.recruiter_id);
           const recruiterPhone = recruiterObj?.phone || job.recruiter_phone || '9944011223';
           const recruiterName = recruiterObj?.name || job.recruiter_name || 'Vellore Recruiter';
@@ -77,8 +81,14 @@ export const MyClaimedJobs: React.FC<MyClaimedJobsProps> = ({
           return (
             <div
               key={job.id}
-              onClick={() => onViewDetails(job)}
-              className="glass-panel rounded-2xl p-5 border border-slate-200 shadow-sm hover:border-sky-300 hover:shadow-md transition-all cursor-pointer space-y-4 relative overflow-hidden bg-white"
+              onClick={() => {
+                if (!isCompleted) {
+                  onViewDetails(job);
+                }
+              }}
+              className={`glass-panel rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4 relative overflow-hidden bg-white ${
+                isCompleted ? 'cursor-default' : 'hover:border-sky-300 hover:shadow-md transition-all cursor-pointer'
+              }`}
             >
               <div className="flex items-start justify-between gap-2">
                 <div>
@@ -91,11 +101,13 @@ export const MyClaimedJobs: React.FC<MyClaimedJobsProps> = ({
                 </div>
 
                 <span className={`px-2.5 py-1 rounded-xl text-xs font-extrabold border ${
-                  isCompleted
+                  isPaid
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                    : isCompleted
                     ? 'bg-slate-100 text-slate-600 border-slate-200'
                     : 'bg-sky-50 text-sky-700 border-sky-200'
                 }`}>
-                  {isCompleted ? t.completedBadge : t.statusClaimed}
+                  {isPaid ? (t.paidStatus || 'Paid') : (isCompleted ? (t.paymentCompleted || t.completedBadge) : t.statusClaimed)}
                 </span>
               </div>
 
@@ -113,8 +125,25 @@ export const MyClaimedJobs: React.FC<MyClaimedJobsProps> = ({
                 )}
               </div>
 
+              {/* Payment Received Banner if Paid */}
+              {isPaid && (
+                <div className="p-3 rounded-xl bg-emerald-50/90 border border-emerald-200 text-emerald-800 text-xs space-y-1">
+                  <div className="flex items-center justify-between font-bold">
+                    <div className="flex items-center gap-1.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>Payment Received</span>
+                    </div>
+                    <span className="font-bold text-emerald-700">₹{job.payout_amount}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] text-emerald-700/80 pt-0.5">
+                    <span>From: <span className="font-semibold text-emerald-900">{recruiterName}</span></span>
+                    <span className="font-mono text-[10px]">{job.payment_transaction_id || 'T2T-TXN-VERIFIED'}</span>
+                  </div>
+                </div>
+              )}
+
               {/* Pay & Recruiter */}
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+              <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <div className="text-[10px] text-slate-500 uppercase font-semibold">{t.earnings}</div>
                   <div className="text-base font-extrabold text-sky-600">
@@ -123,10 +152,22 @@ export const MyClaimedJobs: React.FC<MyClaimedJobsProps> = ({
                 </div>
 
                 {/* Quick actions */}
-                <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                  {onGetDirections && (
+                    <button
+                      type="button"
+                      onClick={() => onGetDirections(job)}
+                      className="px-3 py-1.5 rounded-xl bg-sky-500 hover:bg-sky-600 text-white font-bold text-xs flex items-center gap-1 transition-all shadow-xs active:scale-95 cursor-pointer"
+                      title={t.directionsBtn}
+                    >
+                      <Navigation className="w-3.5 h-3.5" />
+                      <span>{t.directionsBtn}</span>
+                    </button>
+                  )}
+
                   <button
                     onClick={() => window.open(`tel:${recruiterPhone}`, '_self')}
-                    className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 transition-colors"
+                    className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 transition-colors cursor-pointer"
                     title={t.callRecruiterBtn}
                   >
                     <Phone className="w-4 h-4 text-sky-600" />
@@ -135,10 +176,10 @@ export const MyClaimedJobs: React.FC<MyClaimedJobsProps> = ({
                   <button
                     onClick={() => {
                       const cleanPhone = recruiterPhone.replace(/[^0-9]/g, '');
-                      const msg = encodeURIComponent(`Hello ${recruiterName}, regarding "${localizedTitle}" that I accepted on Skill2Work.`);
+                      const msg = encodeURIComponent(`Hello ${recruiterName}, regarding "${localizedTitle}" that I accepted on Talent2Task.`);
                       window.open(`https://wa.me/${cleanPhone}?text=${msg}`, '_blank');
                     }}
-                    className="p-2 rounded-xl bg-sky-500 hover:bg-sky-600 text-white transition-colors shadow-sm"
+                    className="p-2 rounded-xl bg-sky-500 hover:bg-sky-600 text-white transition-colors shadow-sm cursor-pointer"
                     title={t.whatsappRecruiterBtn}
                   >
                     <MessageSquare className="w-4 h-4" />
@@ -146,14 +187,14 @@ export const MyClaimedJobs: React.FC<MyClaimedJobsProps> = ({
 
                   <button
                     onClick={() => {
-                      const msg = `Hi ${recruiterName}, I have claimed your gig "${localizedTitle}" on Skill2Work. My Name: ${currentUser.name}, Phone: ${currentUser.phone}. Please contact me!`;
+                      const msg = `Hi ${recruiterName}, I have claimed your gig "${localizedTitle}" on Talent2Task. My Name: ${currentUser.name}, Phone: ${currentUser.phone}. Please contact me!`;
                       triggerOfflineSms(recruiterPhone, msg);
                     }}
-                    className="px-2.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs flex items-center gap-1 transition-colors shadow-xs active:scale-95"
+                    className="px-2.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs flex items-center gap-1 transition-colors shadow-xs active:scale-95 cursor-pointer"
                     title="Send direct offline cellular SMS to recruiter"
                   >
                     <MessageSquare className="w-3.5 h-3.5" />
-                    <span>Offline SMS</span>
+                    <span>SMS</span>
                   </button>
                 </div>
               </div>

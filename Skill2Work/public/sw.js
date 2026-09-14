@@ -1,4 +1,4 @@
-const CACHE_NAME = 'skill2work-offline-v3';
+const CACHE_NAME = 'talent2task-offline-v3';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -10,11 +10,25 @@ const APP_SHELL = [
   '/offline.html'
 ];
 
+// Offline fallback tile for OpenStreetMap (256x256 SVG radar grid)
+const OFFLINE_TILE_SVG = `
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <rect width="256" height="256" fill="#f8fafc" />
+  <path d="M 0 0 L 256 0 L 256 256 L 0 256 Z" fill="none" stroke="#e2e8f0" stroke-width="1"/>
+  <circle cx="128" cy="128" r="64" fill="none" stroke="#e0f2fe" stroke-width="1.5" stroke-dasharray="4,4"/>
+  <circle cx="128" cy="128" r="110" fill="none" stroke="#e0f2fe" stroke-width="1.5" stroke-dasharray="4,4"/>
+  <line x1="128" y1="0" x2="128" y2="256" stroke="#f1f5f9" stroke-width="1"/>
+  <line x1="0" y1="128" x2="256" y2="128" stroke="#f1f5f9" stroke-width="1"/>
+  <text x="128" y="132" font-family="system-ui, sans-serif" font-size="10" fill="#94a3b8" text-anchor="middle" font-weight="700" letter-spacing="1">OFFLINE RADAR</text>
+</svg>
+`.trim();
+
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => cache.addAll(APP_SHELL))
-      .then(() => self.skipWaiting())
+      .catch((err) => console.warn('Service Worker precache notice:', err))
   );
 });
 
@@ -34,21 +48,71 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
-  const requestUrl = new URL(event.request.url);
+  const url = new URL(event.request.url);
 
-  // 1. Cache-First for static assets, WASM, JavaScript bundles, CSS, and images
-  if (
-    requestUrl.pathname.endsWith('.wasm') ||
-    requestUrl.pathname.endsWith('.js') ||
-    requestUrl.pathname.endsWith('.css') ||
-    requestUrl.pathname.endsWith('.png') ||
-    requestUrl.pathname.endsWith('.svg') ||
-    requestUrl.pathname.endsWith('.json') ||
-    requestUrl.pathname.includes('/assets/')
-  ) {
+  // 1. OpenStreetMap Tiles Handler
+  if (url.hostname.includes('tile.openstreetmap.org')) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return response;
+        })
+        .catch(async () => {
+          const cached = await caches.match(event.request);
+          if (cached) return cached;
+          return new Response(OFFLINE_TILE_SVG, {
+            headers: { 'Content-Type': 'image/svg+xml' }
+          });
+        })
+    );
+    return;
+  }
+
+  // 2. Google Fonts & External CDN caching
+  if (url.hostname.includes('fonts.googleapis.com') || url.hostname.includes('fonts.gstatic.com')) {
     event.respondWith(
       caches.match(event.request).then((cached) => {
         if (cached) return cached;
+        return fetch(event.request).then((response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return response;
+        }).catch(() => new Response('', { status: 200 }));
+      })
+    );
+    return;
+  }
+
+  // 3. Static Assets & Code (WASM, JS, CSS, JSON, Images)
+  if (
+    url.pathname.endsWith('.wasm') ||
+    url.pathname.endsWith('.js') ||
+    url.pathname.endsWith('.css') ||
+    url.pathname.endsWith('.json') ||
+    url.pathname.endsWith('.png') ||
+    url.pathname.endsWith('.jpg') ||
+    url.pathname.endsWith('.jpeg') ||
+    url.pathname.endsWith('.svg') ||
+    url.pathname.endsWith('.ico') ||
+    url.pathname.includes('/assets/')
+  ) {
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        if (cached) {
+          // Stale-while-revalidate for assets
+          fetch(event.request).then((fresh) => {
+            if (fresh.ok) {
+              caches.open(CACHE_NAME).then((cache) => cache.put(event.request, fresh));
+            }
+          }).catch(() => {});
+          return cached;
+        }
         return fetch(event.request)
           .then((response) => {
             if (response.ok) {
@@ -63,7 +127,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 2. Network-First with Cache Fallback for navigation and HTML requests
+  // 4. Navigation & HTML requests (Network-first with offline cache fallback)
   event.respondWith(
     fetch(event.request)
       .then((response) => {
@@ -73,11 +137,12 @@ self.addEventListener('fetch', (event) => {
         }
         return response;
       })
-      .catch(() => {
-        return caches.match(event.request).then((cached) => {
-          if (cached) return cached;
-          return caches.match('/') || caches.match('/index.html') || caches.match('/offline.html');
-        });
+      .catch(async () => {
+        const cached = await caches.match(event.request);
+        if (cached) return cached;
+        const appFallback = await caches.match('/') || await caches.match('/index.html');
+        if (appFallback) return appFallback;
+        return caches.match('/offline.html');
       })
   );
 });

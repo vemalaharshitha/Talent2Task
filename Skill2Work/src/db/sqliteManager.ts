@@ -1,13 +1,74 @@
-import { INIT_DATABASE_SQL } from './schema';
+import { INIT_DATABASE_SQL, CREATE_TRANSACTIONS_TABLE_SQL, CREATE_RECOMMENDATION_OUTCOMES_TABLE_SQL } from './schema';
 import { INITIAL_USERS, INITIAL_JOBS, INITIAL_REVIEWS, INITIAL_NOTIFICATIONS } from './seedData';
-import type { User, Job, Role, Language, NotificationItem, FeedbackReview, SkillDemandStat } from '../types';
+import type { 
+  User, 
+  Job, 
+  Role, 
+  Language, 
+  NotificationItem, 
+  FeedbackReview, 
+  SkillDemandStat, 
+  CityDemandIntelligence, 
+  JobReport,
+  RecommendationOutcome,
+  RecommendationLifecycleStatus,
+  PaymentTransaction
+} from '../types';
 import { syncService, type SyncMessage } from '../services/syncService';
+import { demandIntelligenceService } from '../services/demandIntelligenceService';
+import { trustSafetyService } from '../services/trustSafetyService';
+import { offlineQueueService } from '../services/offlineQueueService';
+import { translateAllLanguages } from '../services/translationService';
+import { detectLanguageFromScript } from '../i18n/autoTranslate';
 
-const STORAGE_KEY = 'skill2work_sqlite_db_v1';
-const FALLBACK_USERS_KEY = 'skill2work_users_fallback_v1';
-const FALLBACK_JOBS_KEY = 'skill2work_jobs_fallback_v1';
-const FALLBACK_REVIEWS_KEY = 'skill2work_reviews_fallback_v1';
-const FALLBACK_NOTIFICATIONS_KEY = 'skill2work_notifications_fallback_v1';
+const STORAGE_KEY = 'talent2task_sqlite_db_v1';
+const FALLBACK_USERS_KEY = 'talent2task_users_fallback_v1';
+const FALLBACK_JOBS_KEY = 'talent2task_jobs_fallback_v1';
+const FALLBACK_REVIEWS_KEY = 'talent2task_reviews_fallback_v1';
+const FALLBACK_NOTIFICATIONS_KEY = 'talent2task_notifications_fallback_v1';
+const FALLBACK_REPORTS_KEY = 'talent2task_reports_fallback_v1';
+const FALLBACK_OUTCOMES_KEY = 'talent2task_outcomes_fallback_v1';
+
+const INITIAL_OUTCOMES: RecommendationOutcome[] = [
+  {
+    id: 'out_seed_001',
+    job_id: 'job_chn_001',
+    worker_id: 'usr_seeker_1',
+    recommended_at: '2026-09-09 18:00:00',
+    status: 'rated',
+    match_score: 94,
+    accepted_at: '2026-09-09 18:15:00',
+    completed_at: '2026-09-09 20:00:00',
+    rating: 5,
+    feedback_comment: 'Karthik arrived on time and completed deliveries ahead of schedule. Very professional!'
+  },
+  {
+    id: 'out_seed_002',
+    job_id: 'job_cbe_002',
+    worker_id: 'usr_seeker_2',
+    recommended_at: '2026-09-08 17:00:00',
+    status: 'rated',
+    match_score: 92,
+    accepted_at: '2026-09-08 17:30:00',
+    completed_at: '2026-09-08 19:00:00',
+    rating: 5,
+    feedback_comment: 'Priya was thorough, polite with customers, and managed cash billing accurately.'
+  }
+];
+
+export function deriveCityFromArea(areaText?: string): string {
+  if (!areaText) return 'Tamil Nadu';
+  const a = areaText.toLowerCase();
+  if (a.includes('sivakasi')) return 'Sivakasi';
+  if (a.includes('chennai') || a.includes('guindy') || a.includes('nagar') || a.includes('velachery') || a.includes('omr') || a.includes('ambattur')) return 'Chennai';
+  if (a.includes('coimbatore') || a.includes('peelamedu') || a.includes('gandhipuram') || a.includes('saravanampatti') || a.includes('kovai')) return 'Coimbatore';
+  if (a.includes('madurai') || a.includes('mattuthavani') || a.includes('periyar') || a.includes('meenakshi') || a.includes('bypass road')) return 'Madurai';
+  if (a.includes('trichy') || a.includes('tiruchirappalli') || a.includes('thillai nagar')) return 'Tiruchirappalli';
+  if (a.includes('salem') || a.includes('meyyanur')) return 'Salem';
+  if (a.includes('tirunelveli') || a.includes('palayamkottai')) return 'Tirunelveli';
+  if (a.includes('vellore') || a.includes('katpadi') || a.includes('cmc')) return 'Vellore';
+  return 'Tamil Nadu';
+}
 
 class SQLiteManager {
   private db: any = null;
@@ -21,6 +82,9 @@ class SQLiteManager {
   private memoryJobs: Job[] = [];
   private memoryReviews: FeedbackReview[] = [];
   private memoryNotifications: NotificationItem[] = [];
+  private memoryReports: JobReport[] = [];
+  private memoryOutcomes: RecommendationOutcome[] = [];
+  private memoryTransactions: PaymentTransaction[] = [];
 
   constructor() {
     this.initFallbackData();
@@ -78,6 +142,11 @@ class SQLiteManager {
             this.applyRemoteReview(msg.data);
           }
           break;
+        case 'PAYMENT_PROCESSED':
+          if (msg.data && msg.data.job_id) {
+            this.createPaymentTransaction(msg.data, true);
+          }
+          break;
         default:
           break;
       }
@@ -86,14 +155,111 @@ class SQLiteManager {
 
   private initFallbackData() {
     try {
+      if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+        this.memoryUsers = INITIAL_USERS.map(u => ({
+          id: u.id,
+          role: u.role as Role,
+          name: u.name,
+          age: u.age,
+          phone: u.phone,
+          skills: JSON.parse(u.skills),
+          free_time_slots: JSON.parse(u.free_time_slots),
+          preferred_language: u.preferred_language as Language,
+          latitude: u.latitude,
+          longitude: u.longitude,
+          experience: (u as any).experience || 0,
+          city: (u as any).city || 'Chennai',
+          address: (u as any).address || '',
+          landmark: (u as any).landmark || ''
+        }));
+        this.memoryJobs = INITIAL_JOBS.map(j => ({
+          id: j.id,
+          recruiter_id: j.recruiter_id,
+          title: j.title,
+          description: j.description,
+          category: j.category,
+          required_skills: JSON.parse(j.required_skills),
+          payout_amount: j.payout_amount,
+          payout_unit: j.payout_unit as any,
+          latitude: j.latitude,
+          longitude: j.longitude,
+          landmark_area: j.landmark_area,
+          city: (j as any).city || deriveCityFromArea(j.landmark_area),
+          status: j.status as any,
+          claimed_by: j.claimed_by,
+          created_at: j.created_at
+        }));
+        this.memoryReviews = INITIAL_REVIEWS.map(r => ({
+          ...r,
+          tags: JSON.parse(r.tags)
+        }));
+        this.memoryNotifications = INITIAL_NOTIFICATIONS.map(n => ({
+          ...n,
+          type: n.type as any,
+          is_read: Boolean(n.is_read)
+        }));
+        this.memoryOutcomes = [...INITIAL_OUTCOMES];
+        return;
+      }
+
       const cachedUsers = localStorage.getItem(FALLBACK_USERS_KEY);
       const cachedJobs = localStorage.getItem(FALLBACK_JOBS_KEY);
       const cachedReviews = localStorage.getItem(FALLBACK_REVIEWS_KEY);
       const cachedNotifications = localStorage.getItem(FALLBACK_NOTIFICATIONS_KEY);
+      const cachedReports = localStorage.getItem(FALLBACK_REPORTS_KEY);
+      const cachedOutcomes = localStorage.getItem(FALLBACK_OUTCOMES_KEY);
 
       if (cachedUsers && cachedJobs) {
         this.memoryUsers = JSON.parse(cachedUsers);
         this.memoryJobs = JSON.parse(cachedJobs);
+
+        // Merge any newly introduced initial users (e.g. Sivakasi recruiter)
+        INITIAL_USERS.forEach(u => {
+          if (!this.memoryUsers.some(mu => mu.id === u.id)) {
+            this.memoryUsers.push({
+              id: u.id,
+              role: u.role as Role,
+              name: u.name,
+              age: u.age,
+              phone: u.phone,
+              skills: JSON.parse(u.skills),
+              free_time_slots: JSON.parse(u.free_time_slots),
+              preferred_language: u.preferred_language as Language,
+              latitude: u.latitude,
+              longitude: u.longitude,
+              experience: (u as any).experience || 0,
+              city: (u as any).city || 'Chennai',
+              address: (u as any).address || '',
+              landmark: (u as any).landmark || ''
+            });
+          }
+        });
+
+        // Merge any newly introduced initial jobs (e.g. Sivakasi gigs)
+        INITIAL_JOBS.forEach(j => {
+          if (!this.memoryJobs.some(mj => mj.id === j.id)) {
+            this.memoryJobs.push({
+              id: j.id,
+              recruiter_id: j.recruiter_id,
+              title: j.title,
+              description: j.description,
+              category: j.category,
+              required_skills: JSON.parse(j.required_skills),
+              payout_amount: j.payout_amount,
+              payout_unit: j.payout_unit as any,
+              latitude: j.latitude,
+              longitude: j.longitude,
+              landmark_area: j.landmark_area,
+              city: (j as any).city || deriveCityFromArea(j.landmark_area),
+              status: j.status as any,
+              claimed_by: j.claimed_by,
+              created_at: j.created_at,
+              recruiter_name: 'Tamil Nadu Business Partner',
+              recruiter_phone: '+91 99440 11223'
+            });
+          }
+        });
+
         this.memoryReviews = cachedReviews ? JSON.parse(cachedReviews) : INITIAL_REVIEWS.map(r => ({
           ...r,
           tags: JSON.parse(r.tags)
@@ -103,6 +269,8 @@ class SQLiteManager {
           type: n.type as any,
           is_read: Boolean(n.is_read)
         }));
+        this.memoryReports = cachedReports ? JSON.parse(cachedReports) : [];
+        this.memoryOutcomes = cachedOutcomes ? JSON.parse(cachedOutcomes) : [...INITIAL_OUTCOMES];
       } else {
         this.memoryUsers = INITIAL_USERS.map(u => ({
           id: u.id,
@@ -114,7 +282,11 @@ class SQLiteManager {
           free_time_slots: JSON.parse(u.free_time_slots),
           preferred_language: u.preferred_language as Language,
           latitude: u.latitude,
-          longitude: u.longitude
+          longitude: u.longitude,
+          experience: (u as any).experience || 0,
+          city: (u as any).city || 'Chennai',
+          address: (u as any).address || '',
+          landmark: (u as any).landmark || ''
         }));
 
         this.memoryJobs = INITIAL_JOBS.map(j => ({
@@ -129,10 +301,11 @@ class SQLiteManager {
           latitude: j.latitude,
           longitude: j.longitude,
           landmark_area: j.landmark_area,
+          city: (j as any).city || deriveCityFromArea(j.landmark_area),
           status: j.status as any,
           claimed_by: j.claimed_by,
           created_at: j.created_at,
-          recruiter_name: 'Vellore Business Partner',
+          recruiter_name: 'Tamil Nadu Business Partner',
           recruiter_phone: '+91 99440 11223'
         }));
 
@@ -160,6 +333,9 @@ class SQLiteManager {
           linkJobId: n.link_job_id
         }));
 
+        this.memoryReports = [];
+        this.memoryOutcomes = [...INITIAL_OUTCOMES];
+
         this.saveFallbackData();
       }
     } catch (e) {
@@ -169,10 +345,13 @@ class SQLiteManager {
 
   private saveFallbackData() {
     try {
+      if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
       localStorage.setItem(FALLBACK_USERS_KEY, JSON.stringify(this.memoryUsers));
       localStorage.setItem(FALLBACK_JOBS_KEY, JSON.stringify(this.memoryJobs));
       localStorage.setItem(FALLBACK_REVIEWS_KEY, JSON.stringify(this.memoryReviews));
       localStorage.setItem(FALLBACK_NOTIFICATIONS_KEY, JSON.stringify(this.memoryNotifications));
+      localStorage.setItem(FALLBACK_REPORTS_KEY, JSON.stringify(this.memoryReports));
+      localStorage.setItem(FALLBACK_OUTCOMES_KEY, JSON.stringify(this.memoryOutcomes));
     } catch (e) {
       console.warn('Failed to save fallback data:', e);
     }
@@ -199,6 +378,10 @@ class SQLiteManager {
 
   private async initialize(): Promise<void> {
     try {
+      if (typeof window === 'undefined') {
+        this.isReady = true;
+        return;
+      }
       const getInitSqlJs = () => (window as any).initSqlJs;
 
       if (typeof getInitSqlJs === 'function') {
@@ -215,6 +398,7 @@ class SQLiteManager {
               bytes[i] = binaryString.charCodeAt(i);
             }
             this.db = new SQL.Database(bytes);
+            this.migrateTables();
           } catch (e) {
             console.warn('Corrupted SQLite binary in storage, creating fresh database', e);
             this.db = new SQL.Database();
@@ -235,14 +419,76 @@ class SQLiteManager {
     }
   }
 
+  private migrateTables() {
+    if (!this.db) return;
+    try {
+      this.db.run(CREATE_TRANSACTIONS_TABLE_SQL);
+    } catch {}
+    try {
+      this.db.run(CREATE_RECOMMENDATION_OUTCOMES_TABLE_SQL);
+    } catch {}
+    try {
+      this.db.run("ALTER TABLE users ADD COLUMN experience INTEGER DEFAULT 0;");
+    } catch {}
+    try {
+      this.db.run("ALTER TABLE users ADD COLUMN city TEXT DEFAULT 'Chennai';");
+    } catch {}
+    try {
+      this.db.run("ALTER TABLE users ADD COLUMN address TEXT;");
+    } catch {}
+    try {
+      this.db.run("ALTER TABLE users ADD COLUMN landmark TEXT;");
+    } catch {}
+    try {
+      this.db.run("ALTER TABLE users ADD COLUMN door_no TEXT;");
+    } catch {}
+    try {
+      this.db.run("ALTER TABLE users ADD COLUMN street_name TEXT;");
+    } catch {}
+    try {
+      this.db.run("ALTER TABLE users ADD COLUMN district TEXT;");
+    } catch {}
+    try {
+      this.db.run("ALTER TABLE jobs ADD COLUMN original_text TEXT;");
+    } catch {}
+    try {
+      this.db.run("ALTER TABLE jobs ADD COLUMN original_language TEXT DEFAULT 'en';");
+    } catch {}
+    try {
+      this.db.run("ALTER TABLE jobs ADD COLUMN translations TEXT;");
+    } catch {}
+    try {
+      this.db.run("ALTER TABLE jobs ADD COLUMN payment_status TEXT DEFAULT 'UNPAID';");
+    } catch {}
+    try {
+      this.db.run("ALTER TABLE jobs ADD COLUMN payment_transaction_id TEXT;");
+    } catch {}
+    try {
+      this.db.run("ALTER TABLE jobs ADD COLUMN payment_date TEXT;");
+    } catch {}
+    try {
+      this.db.run("ALTER TABLE jobs ADD COLUMN payment_method TEXT;");
+    } catch {}
+    try {
+      this.db.run("ALTER TABLE recommendation_outcomes ADD COLUMN recommended_at TIMESTAMP;");
+    } catch {}
+    try {
+      this.db.run("ALTER TABLE recommendation_outcomes ADD COLUMN accepted_at TIMESTAMP;");
+    } catch {}
+    try {
+      this.db.run("ALTER TABLE recommendation_outcomes ADD COLUMN completed_at TIMESTAMP;");
+    } catch {}
+  }
+
   private initTablesAndSeed() {
     if (!this.db) return;
     this.db.run(INIT_DATABASE_SQL);
+    this.migrateTables();
 
     // Seed Users
     const userStmt = this.db.prepare(
-      `INSERT OR IGNORE INTO users (id, role, name, age, phone, skills, free_time_slots, preferred_language, latitude, longitude) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT OR IGNORE INTO users (id, role, name, age, phone, skills, free_time_slots, preferred_language, latitude, longitude, experience, city, address, landmark, door_no, street_name, district) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
     INITIAL_USERS.forEach(u => {
       userStmt.run([
@@ -255,7 +501,14 @@ class SQLiteManager {
         u.free_time_slots,
         u.preferred_language,
         u.latitude,
-        u.longitude
+        u.longitude,
+        (u as any).experience || 0,
+        (u as any).city || 'Chennai',
+        (u as any).address || '',
+        (u as any).landmark || '',
+        (u as any).door_no || '',
+        (u as any).street_name || '',
+        (u as any).district || (u as any).city || 'Chennai'
       ]);
     });
     userStmt.free();
@@ -285,7 +538,64 @@ class SQLiteManager {
     });
     jobStmt.free();
 
+    // Seed Outcomes
+    try {
+      const outcomeStmt = this.db.prepare(
+        `INSERT OR IGNORE INTO recommendation_outcomes (id, job_id, worker_id, recommended_at, status, match_score, accepted_at, completed_at, rating, feedback_comment)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      );
+      this.memoryOutcomes.forEach(o => {
+        outcomeStmt.run([
+          o.id,
+          o.job_id,
+          o.worker_id,
+          o.recommended_at,
+          o.status,
+          o.match_score || null,
+          o.accepted_at || null,
+          o.completed_at || null,
+          o.rating || null,
+          o.feedback_comment || null
+        ]);
+      });
+      outcomeStmt.free();
+    } catch (e) {
+      console.warn('SQLite seed outcomes error:', e);
+    }
+
     this.saveToStorage();
+  }
+
+  private getTransactionsFromDb(): PaymentTransaction[] {
+    if (!this.db) return [];
+    try {
+      const results = this.db.exec('SELECT * FROM transactions ORDER BY created_at DESC, id DESC');
+      if (!results || results.length === 0) return [];
+      const { columns, values } = results[0];
+      return values.map((row: any[]) => {
+        const obj: any = {};
+        columns.forEach((col: string, idx: number) => {
+          obj[col] = row[idx];
+        });
+        return {
+          id: obj.id,
+          job_id: obj.job_id,
+          job_title: obj.job_title,
+          recruiter_id: obj.recruiter_id,
+          recruiter_name: obj.recruiter_name,
+          seeker_id: obj.seeker_id,
+          seeker_name: obj.seeker_name,
+          amount: Number(obj.amount),
+          payout_unit: obj.payout_unit || 'task',
+          payment_method: obj.payment_method || 'UPI',
+          status: obj.status || 'Payment Successful',
+          created_at: obj.created_at
+        };
+      });
+    } catch (e) {
+      console.warn('getTransactionsFromDb error:', e);
+      return [];
+    }
   }
 
   private syncMemoryFromDb() {
@@ -293,8 +603,10 @@ class SQLiteManager {
       try {
         const users = this.getUsersFromDb();
         const jobs = this.getJobsFromDb();
+        const transactions = this.getTransactionsFromDb();
         if (users.length > 0) this.memoryUsers = users;
         if (jobs.length > 0) this.memoryJobs = jobs;
+        if (transactions.length > 0) this.memoryTransactions = transactions;
       } catch (e) {
         console.warn('Sync memory error:', e);
       }
@@ -343,7 +655,7 @@ class SQLiteManager {
         return [{ columns, values }];
       } else {
         const columns = ['info', 'version', 'status'];
-        const values = [['Skill2Work SQLite Local Engine', '3.45 (WASM & IndexedDB)', 'ONLINE']];
+        const values = [['Talent2Task SQLite Local Engine', '3.45 (WASM & IndexedDB)', 'ONLINE']];
         return [{ columns, values }];
       }
     }
@@ -374,7 +686,14 @@ class SQLiteManager {
         preferred_language: (obj.preferred_language || 'en') as Language,
         latitude: obj.latitude,
         longitude: obj.longitude,
-        created_at: obj.created_at
+        created_at: obj.created_at,
+        experience: obj.experience !== undefined && obj.experience !== null ? Number(obj.experience) : 0,
+        city: obj.city || 'Chennai',
+        address: obj.address || '',
+        landmark: obj.landmark || '',
+        door_no: obj.door_no || '',
+        street_name: obj.street_name || '',
+        district: obj.district || obj.city || 'Chennai'
       };
     });
   }
@@ -406,8 +725,8 @@ class SQLiteManager {
     if (this.db && this.isWasm) {
       try {
         const stmt = this.db.prepare(`
-          INSERT INTO users (id, role, name, age, phone, skills, free_time_slots, preferred_language, latitude, longitude)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO users (id, role, name, age, phone, skills, free_time_slots, preferred_language, latitude, longitude, experience, city, address, landmark, door_no, street_name, district)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           ON CONFLICT(id) DO UPDATE SET
             role = excluded.role,
             name = excluded.name,
@@ -417,7 +736,14 @@ class SQLiteManager {
             free_time_slots = excluded.free_time_slots,
             preferred_language = excluded.preferred_language,
             latitude = excluded.latitude,
-            longitude = excluded.longitude
+            longitude = excluded.longitude,
+            experience = excluded.experience,
+            city = excluded.city,
+            address = excluded.address,
+            landmark = excluded.landmark,
+            door_no = excluded.door_no,
+            street_name = excluded.street_name,
+            district = excluded.district
         `);
         stmt.run([
           user.id,
@@ -429,7 +755,14 @@ class SQLiteManager {
           JSON.stringify(user.free_time_slots || []),
           user.preferred_language || 'en',
           user.latitude,
-          user.longitude
+          user.longitude,
+          user.experience ?? 0,
+          user.city || 'Chennai',
+          user.address || '',
+          user.landmark || '',
+          user.door_no || '',
+          user.street_name || '',
+          user.district || user.city || 'Chennai'
         ]);
         stmt.free();
       } catch (e) {
@@ -440,7 +773,11 @@ class SQLiteManager {
     this.notifyListeners();
 
     if (!isRemote) {
-      syncService.broadcastUserUpserted(user);
+      if (!offlineQueueService.isOnline()) {
+        offlineQueueService.enqueueAction('UPSERT_USER', user);
+      } else {
+        syncService.broadcastUserUpserted(user);
+      }
     }
   }
 
@@ -454,15 +791,20 @@ class SQLiteManager {
       created_at: now,
       skills: userData.skills || [],
       free_time_slots: userData.free_time_slots || [],
-      preferred_language: userData.preferred_language || 'en'
+      preferred_language: userData.preferred_language || 'en',
+      experience: userData.experience ?? 0,
+      city: userData.city || 'Chennai',
+      door_no: userData.door_no || '',
+      street_name: userData.street_name || '',
+      district: userData.district || userData.city || 'Chennai'
     };
 
     this.upsertUser(newUser);
 
     this.addNotification({
       user_id: newUser.id,
-      title: `🎉 Welcome to Skill2Work, ${newUser.name}!`,
-      message: `Your ${newUser.role === 'seeker' ? 'Job Seeker' : 'Recruiter'} profile is registered in the Vellore local database. radar is active!`,
+      title: `🎉 Welcome to Talent2Task, ${newUser.name}!`,
+      message: `Your profile is registered in the Tamil Nadu database. Real-time radar is active!`,
       type: 'system',
       is_read: false
     });
@@ -489,6 +831,8 @@ class SQLiteManager {
         j.*,
         r.name AS recruiter_name,
         r.phone AS recruiter_phone,
+        r.address AS recruiter_address,
+        r.city AS recruiter_city,
         s.name AS claimed_by_name,
         s.phone AS claimed_by_phone
       FROM jobs j
@@ -516,14 +860,24 @@ class SQLiteManager {
         payout_unit: obj.payout_unit || 'hour',
         latitude: Number(obj.latitude),
         longitude: Number(obj.longitude),
-        landmark_area: obj.landmark_area || 'Vellore',
+        landmark_area: obj.landmark_area || 'Tamil Nadu',
+        city: obj.city || obj.recruiter_city || deriveCityFromArea(obj.landmark_area || ''),
         status: obj.status,
         claimed_by: obj.claimed_by || null,
         created_at: obj.created_at,
+        original_text: obj.original_text || undefined,
+        original_language: (obj.original_language as Language) || undefined,
+        translations: obj.translations ? (typeof obj.translations === 'string' ? JSON.parse(obj.translations) : obj.translations) : undefined,
         recruiter_name: obj.recruiter_name,
         recruiter_phone: obj.recruiter_phone,
+        recruiter_address: obj.recruiter_address || '',
+        recruiter_city: obj.recruiter_city || '',
         claimed_by_name: obj.claimed_by_name,
-        claimed_by_phone: obj.claimed_by_phone
+        claimed_by_phone: obj.claimed_by_phone,
+        payment_status: (obj.payment_status as 'UNPAID' | 'PAID') || (obj.payment_transaction_id ? 'PAID' : 'UNPAID'),
+        payment_transaction_id: obj.payment_transaction_id || undefined,
+        payment_date: obj.payment_date || undefined,
+        payment_method: obj.payment_method || undefined
       };
     });
   }
@@ -541,13 +895,29 @@ class SQLiteManager {
     return jobsList.map(job => {
       const recruiter = this.getUserById(job.recruiter_id);
       const claimant = job.claimed_by ? this.getUserById(job.claimed_by) : null;
+      const reports = this.getReportsForJob(job.id);
+      const trustAssessment = trustSafetyService.evaluateJobTrust(
+        job,
+        recruiter,
+        jobsList,
+        reports.length
+      );
+
+      const recruiterCity = recruiter?.city || (job as any).recruiter_city || deriveCityFromArea(job.landmark_area || '');
+      const jobCity = job.city || (job as any).recruiter_city || recruiterCity || deriveCityFromArea(job.landmark_area || '');
+      const recruiterAddress = recruiter?.address || (job as any).recruiter_address || (recruiter?.landmark ? `${recruiter.landmark}, ${recruiter.city || ''}` : '') || job.landmark_area || '';
 
       return {
         ...job,
-        recruiter_name: recruiter?.name || job.recruiter_name || 'Vellore Recruiter',
+        city: jobCity,
+        recruiter_name: recruiter?.name || job.recruiter_name || 'Tamil Nadu Recruiter',
         recruiter_phone: recruiter?.phone || job.recruiter_phone || '+91 99440 11223',
+        recruiter_address: recruiterAddress,
+        recruiter_city: recruiterCity,
         claimed_by_name: claimant?.name || job.claimed_by_name || undefined,
-        claimed_by_phone: claimant?.phone || job.claimed_by_phone || undefined
+        claimed_by_phone: claimant?.phone || job.claimed_by_phone || undefined,
+        trustAssessment,
+        reportCount: reports.length
       };
     });
   }
@@ -557,11 +927,16 @@ class SQLiteManager {
     const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
 
     const recruiter = this.getUserById(job.recruiter_id);
+    const origLang = job.original_language || detectLanguageFromScript(job.title + ' ' + (job.description || ''));
+
     const newJob: Job = {
       ...job,
       id,
       created_at: now,
-      recruiter_name: recruiter?.name || 'Vellore Recruiter',
+      original_text: job.original_text || job.description || job.title,
+      original_language: origLang,
+      translations: job.translations || undefined,
+      recruiter_name: recruiter?.name || 'Tamil Nadu Recruiter',
       recruiter_phone: recruiter?.phone || '+91 99440 11223'
     };
 
@@ -570,8 +945,8 @@ class SQLiteManager {
     if (this.db && this.isWasm) {
       try {
         const stmt = this.db.prepare(`
-          INSERT INTO jobs (id, recruiter_id, title, description, category, required_skills, payout_amount, payout_unit, latitude, longitude, landmark_area, status, claimed_by, created_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO jobs (id, recruiter_id, title, description, category, required_skills, payout_amount, payout_unit, latitude, longitude, landmark_area, status, claimed_by, created_at, original_text, original_language, translations)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
         stmt.run([
@@ -588,7 +963,10 @@ class SQLiteManager {
           job.landmark_area,
           job.status || 'OPEN',
           job.claimed_by || null,
-          now
+          now,
+          newJob.original_text || null,
+          newJob.original_language || 'en',
+          newJob.translations ? JSON.stringify(newJob.translations) : null
         ]);
         stmt.free();
       } catch (e) {
@@ -596,10 +974,49 @@ class SQLiteManager {
       }
     }
 
+    // Asynchronously pre-generate complete multilingual translations across en, ta, te, hi
+    if (!newJob.translations) {
+      (async () => {
+        try {
+          const [titleTrans, descTrans, catTrans, landTrans] = await Promise.all([
+            translateAllLanguages(job.title, origLang),
+            job.description ? translateAllLanguages(job.description, origLang) : Promise.resolve({ en: '', ta: '', te: '', hi: '' }),
+            translateAllLanguages(job.category, origLang),
+            job.landmark_area ? translateAllLanguages(job.landmark_area, origLang) : Promise.resolve({ en: '', ta: '', te: '', hi: '' })
+          ]);
+
+          newJob.translations = {
+            title: titleTrans,
+            description: descTrans,
+            category: catTrans,
+            landmark_area: landTrans
+          };
+
+          // Update memory and database with translations
+          if (this.db && this.isWasm) {
+            try {
+              const uStmt = this.db.prepare('UPDATE jobs SET translations = ? WHERE id = ?');
+              uStmt.run([JSON.stringify(newJob.translations), id]);
+              uStmt.free();
+            } catch (err) {
+              console.warn('Failed to update translations in SQLite:', err);
+            }
+          }
+          this.notifyListeners();
+        } catch (tErr) {
+          console.warn('Multilingual prefetch error for job:', tErr);
+        }
+      })();
+    }
+
     this.notifyListeners();
 
     if (!isRemote) {
-      syncService.broadcastJobCreated(newJob);
+      if (!offlineQueueService.isOnline()) {
+        offlineQueueService.enqueueAction('CREATE_JOB', newJob);
+      } else {
+        syncService.broadcastJobCreated(newJob);
+      }
     }
 
     return id;
@@ -631,10 +1048,17 @@ class SQLiteManager {
       }
     }
 
+    // Phase 8: Track recommendation lifecycle -> accepted
+    this.updateOutcomeStatus(jobId, seekerId, 'accepted');
+
     this.notifyListeners();
 
     if (!isRemote) {
-      syncService.broadcastJobClaimed(jobId, seekerId, seeker?.name, seeker?.phone);
+      if (!offlineQueueService.isOnline()) {
+        offlineQueueService.enqueueAction('CLAIM_JOB', { jobId, seekerId, seekerName: seeker?.name, seekerPhone: seeker?.phone });
+      } else {
+        syncService.broadcastJobClaimed(jobId, seekerId, seeker?.name, seeker?.phone);
+      }
     }
   }
 
@@ -658,10 +1082,19 @@ class SQLiteManager {
       }
     }
 
+    // Phase 8: Track recommendation lifecycle -> completed
+    if (status === 'COMPLETED' && job?.claimed_by) {
+      this.updateOutcomeStatus(jobId, job.claimed_by, 'completed');
+    }
+
     this.notifyListeners();
 
     if (!isRemote) {
-      syncService.broadcastJobStatusUpdated(jobId, status);
+      if (!offlineQueueService.isOnline()) {
+        offlineQueueService.enqueueAction('UPDATE_JOB_STATUS', { jobId, status });
+      } else {
+        syncService.broadcastJobStatusUpdated(jobId, status);
+      }
     }
   }
 
@@ -681,7 +1114,11 @@ class SQLiteManager {
     this.notifyListeners();
 
     if (!isRemote) {
-      syncService.broadcastJobDeleted(jobId);
+      if (!offlineQueueService.isOnline()) {
+        offlineQueueService.enqueueAction('DELETE_JOB', { jobId });
+      } else {
+        syncService.broadcastJobDeleted(jobId);
+      }
     }
   }
 
@@ -702,6 +1139,9 @@ class SQLiteManager {
 
     this.memoryReviews.unshift(newReview);
 
+    // Phase 8: Transition recommendation outcome to 'rated'
+    this.updateOutcomeStatus(reviewData.job_id, reviewData.to_user_id, 'rated', reviewData.rating, reviewData.comment);
+
     this.addNotification({
       user_id: newReview.to_user_id,
       title: `⭐ New ${newReview.rating}-Star Feedback Received!`,
@@ -714,10 +1154,157 @@ class SQLiteManager {
     this.notifyListeners();
 
     if (!isRemote) {
-      syncService.broadcastReview(newReview);
+      if (!offlineQueueService.isOnline()) {
+        offlineQueueService.enqueueAction('SUBMIT_REVIEW', newReview);
+      } else {
+        syncService.broadcastReview(newReview);
+      }
     }
 
     return newReview;
+  }
+
+  // --- PAYMENT TRANSACTIONS (PHASE 35) ---
+  public isJobPaid(jobId: string): boolean {
+    const job = this.memoryJobs.find(j => j.id === jobId);
+    if (job?.payment_status === 'PAID' || Boolean(job?.payment_transaction_id)) return true;
+    return this.memoryTransactions.some(t => t.job_id === jobId);
+  }
+
+  public createPaymentTransaction(txData: {
+    job_id: string;
+    job_title: string;
+    recruiter_id: string;
+    recruiter_name: string;
+    seeker_id: string;
+    seeker_name: string;
+    amount: number;
+    payout_unit: string;
+    payment_method: 'UPI' | 'Card' | 'Net Banking' | 'Wallet';
+  }, isRemote: boolean = false): PaymentTransaction {
+    // If already paid for this job, return the existing transaction without paying again
+    const existingTxn = this.memoryTransactions.find(t => t.job_id === txData.job_id);
+    if (existingTxn) {
+      return existingTxn;
+    }
+
+    const txnId = `T2T-TXN-${Date.now().toString().slice(-6)}${Math.floor(1000 + Math.random() * 9000)}`;
+    const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
+
+    const newTxn: PaymentTransaction = {
+      id: txnId,
+      job_id: txData.job_id,
+      job_title: txData.job_title,
+      recruiter_id: txData.recruiter_id,
+      recruiter_name: txData.recruiter_name,
+      seeker_id: txData.seeker_id,
+      seeker_name: txData.seeker_name,
+      amount: txData.amount,
+      payout_unit: txData.payout_unit,
+      payment_method: txData.payment_method,
+      status: 'Payment Successful',
+      created_at: now
+    };
+
+    this.memoryTransactions.unshift(newTxn);
+
+    // Update memory job
+    const job = this.memoryJobs.find(j => j.id === txData.job_id);
+    if (job) {
+      job.status = 'COMPLETED';
+      job.payment_status = 'PAID';
+      job.payment_transaction_id = txnId;
+      job.payment_date = now;
+      job.payment_method = txData.payment_method;
+    }
+
+    if (this.db && this.isWasm) {
+      try {
+        const stmt = this.db.prepare(`
+          INSERT INTO transactions (id, job_id, job_title, recruiter_id, recruiter_name, seeker_id, seeker_name, amount, payout_unit, payment_method, status, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        stmt.run([
+          newTxn.id,
+          newTxn.job_id,
+          newTxn.job_title,
+          newTxn.recruiter_id,
+          newTxn.recruiter_name,
+          newTxn.seeker_id,
+          newTxn.seeker_name,
+          newTxn.amount,
+          newTxn.payout_unit,
+          newTxn.payment_method,
+          newTxn.status,
+          now
+        ]);
+        stmt.free();
+
+        const jobStmt = this.db.prepare(`
+          UPDATE jobs 
+          SET status = 'COMPLETED', payment_status = 'PAID', payment_transaction_id = ?, payment_date = ?, payment_method = ? 
+          WHERE id = ?
+        `);
+        jobStmt.run([txnId, now, txData.payment_method, txData.job_id]);
+        jobStmt.free();
+
+        this.saveToStorage();
+      } catch (e) {
+        console.warn('SQLite createPaymentTransaction error:', e);
+      }
+    }
+
+    // Seeker Notification (Exact format from Phase 35 specifications)
+    this.addNotification({
+      user_id: txData.seeker_id,
+      title: 'Payment Received',
+      message: `You received ₹${txData.amount} from ${txData.recruiter_name} for ${txData.job_title}.\n\nTransaction ID:\n${txnId}\n\nStatus:\nPayment Successful`,
+      type: 'payment',
+      is_read: false,
+      linkJobId: txData.job_id
+    }, isRemote);
+
+    // Recruiter Notification
+    this.addNotification({
+      user_id: txData.recruiter_id,
+      title: 'Payment Successful',
+      message: `₹${txData.amount} paid to ${txData.seeker_name} for ${txData.job_title}.\n\nTransaction ID:\n${txnId}\n\nStatus:\nPayment Successful`,
+      type: 'payment',
+      is_read: false,
+      linkJobId: txData.job_id
+    }, isRemote);
+
+    // Sync / Enqueue offline
+    if (!isRemote) {
+      if (!offlineQueueService.isOnline()) {
+        offlineQueueService.enqueueAction('PROCESS_PAYMENT', newTxn);
+      } else {
+        syncService.broadcastPayment(newTxn);
+      }
+    }
+
+    this.notifyListeners();
+    return newTxn;
+  }
+
+  public getTransactionsByUser(userId: string): PaymentTransaction[] {
+    if (this.db && this.isWasm) {
+      try {
+        const txs = this.getTransactionsFromDb();
+        if (txs.length > 0) this.memoryTransactions = txs;
+      } catch {}
+    }
+    return this.memoryTransactions.filter(t => t.recruiter_id === userId || t.seeker_id === userId);
+  }
+
+  public getTransactionByJobId(jobId: string): PaymentTransaction | null {
+    if (this.db && this.isWasm) {
+      try {
+        const txs = this.getTransactionsFromDb();
+        if (txs.length > 0) this.memoryTransactions = txs;
+      } catch {}
+    }
+    return this.memoryTransactions.find(t => t.job_id === jobId) || null;
   }
 
   public getAverageRating(toUserId: string): { average: number; count: number } {
@@ -785,8 +1372,8 @@ class SQLiteManager {
     if (this.db && this.isWasm) {
       try {
         const stmt = this.db.prepare(`
-          INSERT INTO jobs (id, recruiter_id, title, description, category, required_skills, payout_amount, payout_unit, latitude, longitude, landmark_area, status, claimed_by, created_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO jobs (id, recruiter_id, title, description, category, required_skills, payout_amount, payout_unit, latitude, longitude, landmark_area, status, claimed_by, created_at, original_text, original_language, translations)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           ON CONFLICT(id) DO UPDATE SET
             title = excluded.title,
             description = excluded.description,
@@ -798,7 +1385,10 @@ class SQLiteManager {
             longitude = excluded.longitude,
             landmark_area = excluded.landmark_area,
             status = excluded.status,
-            claimed_by = excluded.claimed_by
+            claimed_by = excluded.claimed_by,
+            original_text = excluded.original_text,
+            original_language = excluded.original_language,
+            translations = excluded.translations
         `);
         stmt.run([
           job.id,
@@ -814,7 +1404,10 @@ class SQLiteManager {
           job.landmark_area,
           job.status || 'OPEN',
           job.claimed_by || null,
-          job.created_at || new Date().toISOString()
+          job.created_at || new Date().toISOString(),
+          job.original_text || null,
+          job.original_language || 'en',
+          job.translations ? JSON.stringify(job.translations) : null
         ]);
         stmt.free();
       } catch (e) {
@@ -918,61 +1511,225 @@ class SQLiteManager {
     this.notifyListeners();
   }
 
-  // --- COMMUNITY DEMAND & SKILL TRENDS ANALYSIS ---
-  public getCommunitySkillTrends(): SkillDemandStat[] {
-    const skillCountMap: Record<string, { count: number; totalPay: number; landmarks: Record<string, number> }> = {};
-    const totalJobs = Math.max(1, this.memoryJobs.length);
+  // --- COMMUNITY DEMAND & SKILL TRENDS ANALYSIS (PHASE 5 ENHANCED) ---
+  public getDemandIntelligence(city?: string): CityDemandIntelligence {
+    const allJobs = this.getJobs();
+    return demandIntelligenceService.analyzeDemand(allJobs, city);
+  }
 
-    this.memoryJobs.forEach(job => {
-      (job.required_skills || []).forEach(skill => {
-        const key = skill.trim();
-        if (!skillCountMap[key]) {
-          skillCountMap[key] = { count: 0, totalPay: 0, landmarks: {} };
-        }
-        skillCountMap[key].count += 1;
-        skillCountMap[key].totalPay += job.payout_amount;
-        const landmark = job.landmark_area ? job.landmark_area.split(',')[0] : 'Vellore Hub';
-        skillCountMap[key].landmarks[landmark] = (skillCountMap[key].landmarks[landmark] || 0) + 1;
-      });
+  public getCommunitySkillTrends(city?: string): SkillDemandStat[] {
+    const intelligence = this.getDemandIntelligence(city);
+    return demandIntelligenceService.toSkillDemandStats(intelligence);
+  }
+
+  // --- TRUST & SAFETY REPORTS (PHASE 7) ---
+  public submitReport(jobId: string, reporterId: string, reason: string, details?: string): JobReport {
+    const id = `rep_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const report: JobReport = {
+      id,
+      job_id: jobId,
+      reporter_id: reporterId,
+      reason,
+      details: details || '',
+      created_at: now,
+      status: 'PENDING_REVIEW'
+    };
+
+    this.memoryReports.unshift(report);
+
+    if (this.db && this.isWasm) {
+      try {
+        const stmt = this.db.prepare(`
+          INSERT INTO reports (id, job_id, reporter_id, reason, details, created_at, status)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `);
+        stmt.run([id, jobId, reporterId, reason, details || '', now, 'PENDING_REVIEW']);
+        stmt.free();
+      } catch (e) {
+        console.warn('SQLite submitReport error:', e);
+      }
+    }
+
+    // Add administrative safety notification to alert system
+    this.addNotification({
+      user_id: 'all',
+      title: '🛡️ Job Report Logged for Review',
+      message: `A report has been submitted for Job #${jobId.substring(0, 8)} (${reason}). Our automated review queue has registered the notice.`,
+      type: 'system',
+      is_read: false,
+      linkJobId: jobId
     });
 
-    const trends: SkillDemandStat[] = Object.entries(skillCountMap).map(([skill, data]) => {
-      let topLandmark = 'Katpadi';
-      let maxL = 0;
-      Object.entries(data.landmarks).forEach(([l, c]) => {
-        if (c > maxL) {
-          maxL = c;
-          topLandmark = l;
-        }
-      });
+    this.notifyListeners();
+    return report;
+  }
 
-      const demandPct = Math.min(99, Math.round((data.count / totalJobs) * 100 * 1.5));
-      const avgPay = Math.round(data.totalPay / data.count);
+  public getReportsForJob(jobId: string): JobReport[] {
+    return this.memoryReports.filter(r => r.job_id === jobId);
+  }
 
-      return {
-        skill,
-        demandPercentage: demandPct,
-        openGigsCount: data.count,
-        avgHourlyPay: avgPay,
-        topLandmark,
-        growthRate: demandPct > 40 ? '+24% this week' : '+12% this week'
+  public getAllReports(): JobReport[] {
+    return [...this.memoryReports];
+  }
+
+  // --- RECOMMENDATION OUTCOMES & FEEDBACK PIPELINE (PHASE 8) ---
+  public recordRecommendationOutcome(
+    jobId: string, 
+    workerId: string, 
+    matchScore?: number,
+    recruiterId?: string
+  ): RecommendationOutcome {
+    const existing = this.memoryOutcomes.find(o => o.job_id === jobId && (o.worker_id === workerId || o.user_id === workerId));
+    if (existing) {
+      if (matchScore !== undefined && !existing.match_score) {
+        existing.match_score = matchScore;
+        this.saveFallbackData();
+      }
+      return existing;
+    }
+
+    const id = `rec_out_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const newOutcome: RecommendationOutcome = {
+      id,
+      job_id: jobId,
+      user_id: workerId,
+      worker_id: workerId,
+      recruiter_id: recruiterId || '',
+      recommended_at: now,
+      created_at: now,
+      updated_at: now,
+      status: 'recommended',
+      match_score: matchScore
+    };
+
+    this.memoryOutcomes.unshift(newOutcome);
+
+    if (this.db && this.isWasm) {
+      try {
+        const stmt = this.db.prepare(`
+          INSERT INTO recommendation_outcomes (id, job_id, user_id, recruiter_id, recommended_at, status, match_score, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        stmt.run([id, jobId, workerId, recruiterId || '', now, 'recommended', matchScore ?? null, now, now]);
+        stmt.free();
+      } catch (e) {
+        console.warn('SQLite recordRecommendationOutcome error:', e);
+      }
+    }
+
+    this.notifyListeners();
+    return newOutcome;
+  }
+
+  public updateOutcomeStatus(
+    jobId: string, 
+    workerId: string, 
+    status: RecommendationLifecycleStatus, 
+    rating?: number, 
+    comment?: string
+  ): void {
+    const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    let outcome = this.memoryOutcomes.find(o => o.job_id === jobId && (o.worker_id === workerId || o.user_id === workerId));
+
+    if (!outcome) {
+      outcome = {
+        id: `rec_out_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        job_id: jobId,
+        user_id: workerId,
+        worker_id: workerId,
+        recommended_at: now,
+        created_at: now,
+        updated_at: now,
+        status: 'recommended'
       };
-    });
+      this.memoryOutcomes.unshift(outcome);
+    }
 
-    return trends.sort((a, b) => b.openGigsCount - a.openGigsCount);
+    outcome.status = status;
+    outcome.updated_at = now;
+    if (status === 'accepted') {
+      if (!outcome.accepted_at) outcome.accepted_at = now;
+    } else if (status === 'completed') {
+      outcome.completed_at = now;
+      if (!outcome.accepted_at) outcome.accepted_at = now;
+    } else if (status === 'rated') {
+      if (!outcome.completed_at) outcome.completed_at = now;
+      if (!outcome.accepted_at) outcome.accepted_at = now;
+      if (rating !== undefined) outcome.rating = rating;
+      if (comment !== undefined) {
+        outcome.feedback_comment = comment;
+        outcome.completion_notes = comment;
+      }
+    }
+
+    if (this.db && this.isWasm) {
+      try {
+        const stmt = this.db.prepare(`
+          INSERT INTO recommendation_outcomes (id, job_id, user_id, recruiter_id, recommended_at, status, match_score, accepted_at, completed_at, rating, feedback_comment, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            status = excluded.status,
+            accepted_at = COALESCE(excluded.accepted_at, recommendation_outcomes.accepted_at),
+            completed_at = COALESCE(excluded.completed_at, recommendation_outcomes.completed_at),
+            rating = COALESCE(excluded.rating, recommendation_outcomes.rating),
+            feedback_comment = COALESCE(excluded.feedback_comment, recommendation_outcomes.feedback_comment),
+            updated_at = excluded.updated_at
+        `);
+        stmt.run([
+          outcome.id,
+          outcome.job_id,
+          outcome.user_id || outcome.worker_id,
+          outcome.recruiter_id || '',
+          outcome.recommended_at || now,
+          outcome.status,
+          outcome.match_score ?? null,
+          outcome.accepted_at ?? null,
+          outcome.completed_at ?? null,
+          outcome.rating ?? null,
+          outcome.feedback_comment ?? null,
+          outcome.created_at || now,
+          now
+        ]);
+        stmt.free();
+      } catch (e) {
+        console.warn('SQLite updateOutcomeStatus error:', e);
+      }
+    }
+
+    this.notifyListeners();
+  }
+
+  public getOutcomesForWorker(workerId: string): RecommendationOutcome[] {
+    return this.memoryOutcomes.filter(o => o.worker_id === workerId || o.user_id === workerId);
+  }
+
+  public getOutcomesForJob(jobId: string): RecommendationOutcome[] {
+    return this.memoryOutcomes.filter(o => o.job_id === jobId);
+  }
+
+  public getAllRecommendationOutcomes(): RecommendationOutcome[] {
+    return [...this.memoryOutcomes];
   }
 
   public resetDatabase(): void {
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(FALLBACK_USERS_KEY);
-    localStorage.removeItem(FALLBACK_JOBS_KEY);
-    localStorage.removeItem(FALLBACK_REVIEWS_KEY);
-    localStorage.removeItem(FALLBACK_NOTIFICATIONS_KEY);
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(FALLBACK_USERS_KEY);
+      localStorage.removeItem(FALLBACK_JOBS_KEY);
+      localStorage.removeItem(FALLBACK_REVIEWS_KEY);
+      localStorage.removeItem(FALLBACK_NOTIFICATIONS_KEY);
+      localStorage.removeItem(FALLBACK_REPORTS_KEY);
+      localStorage.removeItem(FALLBACK_OUTCOMES_KEY);
+    }
+    this.memoryReports = [];
+    this.memoryOutcomes = [];
     this.initFallbackData();
 
     if (this.db && this.isWasm) {
       try {
-        this.db.run('DROP TABLE IF EXISTS jobs; DROP TABLE IF EXISTS users; DROP TABLE IF EXISTS reviews; DROP TABLE IF EXISTS notifications;');
+        this.db.run('DROP TABLE IF EXISTS jobs; DROP TABLE IF EXISTS users; DROP TABLE IF EXISTS reviews; DROP TABLE IF EXISTS notifications; DROP TABLE IF EXISTS reports; DROP TABLE IF EXISTS recommendation_outcomes;');
         this.initTablesAndSeed();
       } catch (e) {
         console.warn('SQLite reset error:', e);
@@ -991,6 +1748,8 @@ class SQLiteManager {
       jobs: this.memoryJobs,
       reviews: this.memoryReviews,
       notifications: this.memoryNotifications,
+      reports: this.memoryReports,
+      outcomes: this.memoryOutcomes,
       timestamp: new Date().toISOString()
     };
     const str = JSON.stringify(exportObj, null, 2);

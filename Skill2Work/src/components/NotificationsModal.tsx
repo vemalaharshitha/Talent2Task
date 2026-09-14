@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bell, Check, CheckCheck, Clock, ExternalLink, Sparkles, Star, X, Phone, MessageSquare } from 'lucide-react';
+import { Bell, Check, CheckCheck, Clock, ExternalLink, Sparkles, Star, X, Phone, MessageSquare, CreditCard } from 'lucide-react';
 import type { NotificationItem, Language } from '../types';
 import { localizeContent } from '../i18n/translations';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -92,6 +92,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
               const isJobAlert = notif.type === 'job_alert';
               const isRating = notif.type === 'rating';
               const isClaim = notif.type === 'claim';
+              const isPayment = notif.type === 'payment';
               const phoneMatch = extractPhone(notif.message);
 
               return (
@@ -107,13 +108,17 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                   className={`p-4 rounded-2xl border transition-all cursor-pointer relative overflow-hidden ${
                     notif.is_read
                       ? 'bg-slate-50/70 border-slate-200 text-slate-700 hover:bg-slate-100/80'
+                      : isPayment
+                      ? 'bg-emerald-50/80 border-emerald-300 shadow-xs hover:border-emerald-400'
                       : 'bg-sky-50/70 border-sky-200 shadow-xs hover:border-sky-300'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-start gap-2.5 flex-1">
                       <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
-                        isJobAlert
+                        isPayment
+                          ? 'bg-emerald-500 text-white shadow-xs'
+                          : isJobAlert
                           ? 'bg-sky-500 text-white'
                           : isRating
                           ? 'bg-amber-500 text-white'
@@ -121,7 +126,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                           ? 'bg-emerald-500 text-white'
                           : 'bg-slate-200 text-slate-700'
                       }`}>
-                        {isJobAlert ? <Sparkles className="w-4 h-4" /> : isRating ? <Star className="w-4 h-4 fill-current" /> : isClaim ? <Phone className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
+                        {isPayment ? <CreditCard className="w-4 h-4" /> : isJobAlert ? <Sparkles className="w-4 h-4" /> : isRating ? <Star className="w-4 h-4 fill-current" /> : isClaim ? <Phone className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
                       </div>
 
                       <div className="space-y-1 flex-1">
@@ -130,10 +135,10 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                             {localizeContent(notif.title, language)}
                           </h4>
                           {!notif.is_read && (
-                            <span className="w-2 h-2 rounded-full bg-sky-500 shrink-0"></span>
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
                           )}
                         </div>
-                        <p className="text-xs text-slate-600 leading-relaxed">
+                        <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-line">
                           {localizeContent(notif.message, language)}
                         </p>
 
@@ -148,7 +153,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                               <span>Call {phoneMatch}</span>
                             </a>
                             <a
-                              href={`https://wa.me/${phoneMatch.replace(/[^0-9]/g, '')}?text=${encodeURIComponent('Hello, regarding your gig on Skill2Work!')}`}
+                              href={`https://wa.me/${phoneMatch.replace(/[^0-9]/g, '')}?text=${encodeURIComponent('Hello, regarding your gig on Talent2Task!')}`}
                               target="_blank"
                               rel="noreferrer"
                               className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-500 hover:bg-emerald-600 text-white flex items-center gap-1 shadow-xs"
@@ -159,7 +164,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                             <button
                               type="button"
                               onClick={() => {
-                                triggerOfflineSms(phoneMatch, 'Hi, contacting you regarding the gig on Skill2Work.');
+                                triggerOfflineSms(phoneMatch, 'Hi, contacting you regarding the gig on Talent2Task.');
                               }}
                               className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-500 hover:bg-amber-600 text-white flex items-center gap-1 shadow-xs active:scale-95"
                             >

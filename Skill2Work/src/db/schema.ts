@@ -10,6 +10,13 @@ CREATE TABLE IF NOT EXISTS users (
     preferred_language TEXT DEFAULT 'en',
     latitude REAL,
     longitude REAL,
+    experience INTEGER DEFAULT 0,
+    city TEXT DEFAULT 'Chennai',
+    district TEXT DEFAULT 'Chennai',
+    door_no TEXT,
+    street_name TEXT,
+    address TEXT,
+    landmark TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 `;
@@ -30,6 +37,9 @@ CREATE TABLE IF NOT EXISTS jobs (
     status TEXT CHECK(status IN ('OPEN', 'CLAIMED', 'COMPLETED')) DEFAULT 'OPEN',
     claimed_by TEXT, -- references users(id)
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    original_text TEXT,
+    original_language TEXT DEFAULT 'en',
+    translations TEXT, -- JSON map of multilingual translations
     FOREIGN KEY(recruiter_id) REFERENCES users(id),
     FOREIGN KEY(claimed_by) REFERENCES users(id)
 );
@@ -63,9 +73,68 @@ CREATE TABLE IF NOT EXISTS notifications (
 );
 `;
 
+export const CREATE_REPORTS_TABLE_SQL = `
+CREATE TABLE IF NOT EXISTS reports (
+    id TEXT PRIMARY KEY,
+    job_id TEXT NOT NULL,
+    reporter_id TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    details TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status TEXT DEFAULT 'PENDING_REVIEW',
+    FOREIGN KEY(job_id) REFERENCES jobs(id),
+    FOREIGN KEY(reporter_id) REFERENCES users(id)
+);
+`;
+
+export const CREATE_RECOMMENDATION_OUTCOMES_TABLE_SQL = `
+CREATE TABLE IF NOT EXISTS recommendation_outcomes (
+    id TEXT PRIMARY KEY,
+    job_id TEXT NOT NULL,
+    user_id TEXT,
+    worker_id TEXT,
+    recruiter_id TEXT,
+    match_score REAL DEFAULT 0,
+    semantic_score REAL DEFAULT 0,
+    status TEXT NOT NULL,
+    recommended_at TIMESTAMP,
+    accepted_at TIMESTAMP,
+    completed_at TIMESTAMP,
+    rating INTEGER,
+    feedback_comment TEXT,
+    completion_notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(job_id) REFERENCES jobs(id)
+);
+`;
+
+export const CREATE_TRANSACTIONS_TABLE_SQL = `
+CREATE TABLE IF NOT EXISTS transactions (
+    id TEXT PRIMARY KEY,
+    job_id TEXT NOT NULL,
+    job_title TEXT NOT NULL,
+    recruiter_id TEXT NOT NULL,
+    recruiter_name TEXT NOT NULL,
+    seeker_id TEXT NOT NULL,
+    seeker_name TEXT NOT NULL,
+    amount REAL NOT NULL,
+    payout_unit TEXT DEFAULT 'task',
+    payment_method TEXT NOT NULL,
+    status TEXT DEFAULT 'Payment Successful',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(job_id) REFERENCES jobs(id),
+    FOREIGN KEY(recruiter_id) REFERENCES users(id),
+    FOREIGN KEY(seeker_id) REFERENCES users(id)
+);
+`;
+
 export const INIT_DATABASE_SQL = `
 ${CREATE_USERS_TABLE_SQL}
 ${CREATE_JOBS_TABLE_SQL}
 ${CREATE_REVIEWS_TABLE_SQL}
 ${CREATE_NOTIFICATIONS_TABLE_SQL}
+${CREATE_REPORTS_TABLE_SQL}
+${CREATE_RECOMMENDATION_OUTCOMES_TABLE_SQL}
+${CREATE_TRANSACTIONS_TABLE_SQL}
 `;

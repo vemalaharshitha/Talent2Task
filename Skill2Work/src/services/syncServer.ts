@@ -1,6 +1,7 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import type { IncomingMessage, ServerResponse } from 'http';
 import type { ViteDevServer, PreviewServer } from 'vite';
+import { translateText, translateMulti, detectLanguage, chatWithGemini } from './geminiService.ts';
 
 export interface SyncPayload {
   type: 
@@ -201,12 +202,25 @@ export function setupSyncServer(server: ViteDevServer | PreviewServer) {
     });
   });
 
-  // Attach HTTP middleware for REST sync endpoints
-  server.middlewares.use((req: IncomingMessage, res: ServerResponse, next: () => void) => {
+  // Attach HTTP middleware for REST sync & translation endpoints
+  server.middlewares.use(async (req: IncomingMessage, res: ServerResponse, next: () => void) => {
     const url = req.url || '';
+
+    // Enable CORS for all API endpoints
+    if (url.startsWith('/api/')) {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      
+      if (req.method === 'OPTIONS') {
+        res.statusCode = 204;
+        res.end();
+        return;
+      }
+    }
+
     if (url.startsWith('/api/sync/state') && req.method === 'GET') {
       res.setHeader('Content-Type', 'application/json');
-      res.setHeader('Access-Control-Allow-Origin', '*');
       res.end(JSON.stringify({
         success: true,
         connectedDevices: clients.size,
@@ -225,7 +239,6 @@ export function setupSyncServer(server: ViteDevServer | PreviewServer) {
           const payload: SyncPayload = JSON.parse(body);
           handleSyncEvent(payload);
           res.setHeader('Content-Type', 'application/json');
-          res.setHeader('Access-Control-Allow-Origin', '*');
           res.end(JSON.stringify({ success: true }));
         } catch (e: any) {
           res.statusCode = 400;
@@ -235,6 +248,154 @@ export function setupSyncServer(server: ViteDevServer | PreviewServer) {
       return;
     }
 
+    // POST /api/translate
+    if (url.startsWith('/api/translate') && req.method === 'POST') {
+      let body = '';
+      req.on('data', chunk => {
+        body += chunk;
+      });
+      req.on('end', async () => {
+        try {
+          const { text, targetLanguage, targetLanguages, sourceLanguage } = JSON.parse(body || '{}');
+
+          if (!text || typeof text !== 'string') {
+            res.statusCode = 400;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ error: 'Missing or invalid "text" field' }));
+            return;
+          }
+
+          if (Array.isArray(targetLanguages) && targetLanguages.length > 0) {
+            const multiRes = await translateMulti(text, targetLanguages, sourceLanguage);
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({
+              success: true,
+              translations: multiRes.translations,
+              detectedLanguage: multiRes.detectedLanguage,
+              source: multiRes.source
+            }));
+            return;
+          }
+
+          const target = targetLanguage || 'en';
+          const singleRes = await translateText(text, target, sourceLanguage);
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({
+            success: true,
+            text: singleRes.text,
+            detectedLanguage: singleRes.detectedLanguage,
+            source: singleRes.source
+          }));
+        } catch (err: any) {
+          console.error('[syncServer] /api/translate error:', err);
+          res.statusCode = 500;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ success: false, error: err.message }));
+        }
+      });
+      return;
+    }
+
+    // POST /api/detect-language
+    if (url.startsWith('/api/detect-language') && req.method === 'POST') {
+      let body = '';
+      req.on('data', chunk => {
+        body += chunk;
+      });
+      req.on('end', async () => {
+        try {
+          const { text } = JSON.parse(body || '{}');
+          const lang = await detectLanguage(text || '');
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ success: true, language: lang }));
+        } catch (err: any) {
+          res.statusCode = 500;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ success: false, error: err.message }));
+        }
+      });
+      return;
+    }
+
+    // POST /api/chat
+    if (url.startsWith('/api/chat') && req.method === 'POST') {
+      let body = '';
+      req.on('data', chunk => {
+        body += chunk;
+      });
+      req.on('end', async () => {
+        try {
+          const chatReq = JSON.parse(body || '{}');
+          if (!chatReq.message || typeof chatReq.message !== 'string') {
+            res.statusCode = 400;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ error: 'Missing or invalid "message" field' }));
+            return;
+          }
+
+          const response = await chatWithGemini(chatReq);
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ success: true, ...response }));
+        } catch (err: any) {
+          console.error('[syncServer] /api/chat error:', err);
+          res.statusCode = 500;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ success: false, error: err.message }));
+        }
+      });
+      return;
+    }
+
+    // GET or POST /api/tts
+    if (url.startsWith('/api/tts')) {
+      const parsedUrl = new URL(req.url || '', 'http://localhost');
+      const paramText = parsedUrl.searchParams.get('text') || '';
+      const paramLang = parsedUrl.searchParams.get('lang') || 'en';
+
+      const handleTts = async (txt: string, l: string) => {
+        try {
+          const cleanTxt = txt.replace(/[*#`_•]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 300);
+          const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${encodeURIComponent(l)}&q=${encodeURIComponent(cleanTxt)}`;
+          const ttsRes = await fetch(ttsUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Referer': 'https://translate.google.com/'
+            }
+          });
+
+          if (ttsRes.ok) {
+            const arrayBuffer = await ttsRes.arrayBuffer();
+            res.setHeader('Content-Type', 'audio/mpeg');
+            res.setHeader('Cache-Control', 'public, max-age=86400');
+            res.end(Buffer.from(arrayBuffer));
+            return;
+          }
+          res.statusCode = 502;
+          res.end('TTS stream unavailable');
+        } catch (err: any) {
+          res.statusCode = 500;
+          res.end('TTS error: ' + err.message);
+        }
+      };
+
+      if (req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => { body += chunk; });
+        req.on('end', async () => {
+          try {
+            const parsed = JSON.parse(body || '{}');
+            await handleTts(parsed.text || paramText, parsed.lang || paramLang);
+          } catch {
+            await handleTts(paramText, paramLang);
+          }
+        });
+      } else {
+        handleTts(paramText, paramLang);
+      }
+      return;
+    }
+
     next();
   });
 }
+

@@ -22,3 +22,14 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Environment & API Keys
+.env
+.env.local
+.env.*.local
+*.env
+
+# Python and Scratch
+__pycache__/
+*.pyc
+scratch/

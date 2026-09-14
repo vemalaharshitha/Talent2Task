@@ -10,6 +10,7 @@ export type SyncEventType =
   | 'USER_UPSERTED'
   | 'NOTIFICATION_ADDED'
   | 'REVIEW_ADDED'
+  | 'PAYMENT_PROCESSED'
   | 'CONNECTED_DEVICES_UPDATE'
   | 'PING'
   | 'PONG';
@@ -26,7 +27,7 @@ export type ConnectionStatus = 'connected' | 'connecting' | 'fallback' | 'offlin
 
 type SyncListener = (event: SyncMessage) => void;
 
-const MQTT_TOPIC = 'skill2work/production/vellore_gigs_v2';
+const MQTT_TOPIC = 'talent2task/production/vellore_gigs_v2';
 const PUBLIC_MQTT_BROKERS = [
   'wss://broker.emqx.io:8084/mqtt',
   'wss://broker.hivemq.com:8000/mqtt'
@@ -114,10 +115,13 @@ class SyncService {
   }
 
   private initDeviceId(): string {
-    let id = localStorage.getItem('skill2work_device_id');
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+      return `dev_${Math.random().toString(36).substring(2, 9)}_${Date.now()}`;
+    }
+    let id = localStorage.getItem('talent2task_device_id');
     if (!id) {
       id = `dev_${Math.random().toString(36).substring(2, 9)}_${Date.now()}`;
-      localStorage.setItem('skill2work_device_id', id);
+      localStorage.setItem('talent2task_device_id', id);
     }
     return id;
   }
@@ -169,7 +173,7 @@ class SyncService {
   private initBroadcastChannel() {
     try {
       if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
-        this.broadcastChannel = new BroadcastChannel('skill2work_device_sync_channel');
+        this.broadcastChannel = new BroadcastChannel('talent2task_device_sync_channel');
         this.broadcastChannel.onmessage = (event) => {
           if (event.data && typeof event.data === 'object') {
             this.handleIncomingMessage(event.data, false);
@@ -470,6 +474,16 @@ class SyncService {
       senderDevice: this.deviceType,
       timestamp: new Date().toISOString(),
       data: review
+    });
+  }
+
+  public broadcastPayment(txn: any) {
+    this.send({
+      type: 'PAYMENT_PROCESSED',
+      senderId: this.deviceId,
+      senderDevice: this.deviceType,
+      timestamp: new Date().toISOString(),
+      data: txn
     });
   }
 

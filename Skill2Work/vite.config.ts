@@ -23,7 +23,7 @@ export default defineConfig({
     realtimeSyncPlugin()
   ],
   optimizeDeps: {
-    exclude: ['sql.js']
+    exclude: ['sql.js', '@xenova/transformers']
   },
   server: {
     host: true,
