@@ -56,7 +56,7 @@ export default defineConfig({
     port: 5173,
     allowedHosts: true,
     watch: {
-      ignored: ['**/dist/**', '**/scratch/**', '**/.git/**']
+      ignored: ['**/dist/**', '**/scratch/**', '**/.git/**', '**/android/**']
     }
   },
   preview: {

@@ -1,4 +1,4 @@
-import { chatAssistantService } from '../src/services/chatAssistantService.ts';
+     import { chatAssistantService } from '../src/services/chatAssistantService.ts';
 
 async function run() {
   const mockRecruiter = { id: 'r1', name: 'Sundar', role: 'recruiter', city: 'Chennai' };
