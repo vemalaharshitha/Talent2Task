@@ -1,0 +1,27 @@
+{
+  "short_name": "Talent2Task",
+  "name": "Talent2Task — Local Gig & Skill Network",
+  "description": "Hyper-local part-time job & informal gig discovery across Tamil Nadu.",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#0ea5e9",
+  "theme_color": "#0ea5e9",
+  "display": "standalone",
+  "orientation": "any",
+  "categories": ["business", "productivity", "utilities"],
+  "lang": "en"
+}
+

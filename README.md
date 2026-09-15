@@ -1,29 +1,21 @@
-# Skill2Work
+# Talent2Task
 
 ## AI-Based Skill Matching for Local Employment
 
-Skill2Work is a lightweight, AI-based employment matching platform designed to connect local job seekers with suitable employment opportunities based on their skills, experience, location, and community demand.
+Talent2Task is a lightweight, AI-based employment matching platform designed to connect local job seekers with suitable employment opportunities based on their skills, experience, location, and community demand.
 
 The platform is specifically designed to **work efficiently on low-end devices, support offline functionality, and provide a multilingual interface**. This makes employment services more accessible to users with limited device resources, unreliable internet connectivity, or language barriers.
 
-Skill2Work aims to reduce the gap between local job seekers and employers by providing relevant, skill-based and location-aware job recommendations instead of relying only on traditional manual job searching.
+Talent2Task aims to reduce the gap between local job seekers and employers by providing relevant, skill-based and location-aware job recommendations instead of relying only on traditional manual job searching.
 
 ---
 
 ## Live Demo
 
-**Skill2Work:**
+**Talent2Task:**
 https://timely-unicorn-e93509.netlify.app/
 
 The application is designed with offline-capable functionality so that core features can remain accessible when internet connectivity is unavailable.
-
----
-
-## GitHub Repository
-
-https://github.com/vemalaharshitha/SKILL2WORK
-
----
 
 ## Key Highlights
 
@@ -47,13 +39,13 @@ Many local job seekers struggle to find employment opportunities that match thei
 
 Local employers also face difficulties in quickly identifying suitable skilled workers.
 
-Skill2Work addresses these challenges through a lightweight, skill-based, location-aware, multilingual, and offline-capable employment platform.
+Talent2Task addresses these challenges through a lightweight, skill-based, location-aware, multilingual, and offline-capable employment platform.
 
 ---
 
 ## Proposed Solution
 
-Skill2Work allows users to create profiles based on their skills, experience, location, and employment requirements.
+Talent2Task allows users to create profiles based on their skills, experience, location, and employment requirements.
 
 Employers can create job postings containing required skills, job location, and other relevant information.
 
@@ -77,7 +69,7 @@ The platform considers:
 
 ## 1. Low-End Device Support
 
-Skill2Work is designed as a lightweight application that can run efficiently on low-end devices with limited processing power, memory, and storage.
+Talent2Task is designed as a lightweight application that can run efficiently on low-end devices with limited processing power, memory, and storage.
 
 The application uses a lightweight client-side architecture and minimizes unnecessary resource-intensive processing.
 
@@ -87,7 +79,7 @@ This makes the platform more accessible to users who may not have access to high
 
 ## 2. Offline Functionality
 
-Skill2Work supports offline access to core application functionality using local data storage, SQLite WebAssembly, browser-based technologies, and service-worker-based functionality.
+Talent2Task supports offline access to core application functionality using local data storage, SQLite WebAssembly, browser-based technologies, and service-worker-based functionality.
 
 Previously available application data and core features can remain accessible when an internet connection is unavailable.
 
@@ -97,7 +89,7 @@ This makes the platform suitable for areas with slow, unreliable, or limited int
 
 ## 3. Multilingual Interface
 
-Skill2Work provides multilingual support through its built-in translation system.
+Talent2Task provides multilingual support through its built-in translation system.
 
 Users can interact with the application using supported languages, helping reduce language barriers when:
 
@@ -121,7 +113,7 @@ The matching process helps reduce irrelevant job recommendations and makes emplo
 
 ## 5. Location-Based Matching
 
-Skill2Work considers geographical relevance when recommending employment opportunities.
+Talent2Task considers geographical relevance when recommending employment opportunities.
 
 Users can discover jobs based on their location and selected search radius.
 
@@ -160,7 +152,7 @@ This allows local employers to find workers with relevant skills more efficientl
 
 ## 8. Community Demand
 
-Skill2Work considers local community demand to identify the types of workers and skills that are required in a particular area.
+Talent2Task considers local community demand to identify the types of workers and skills that are required in a particular area.
 
 This can help identify employment opportunities based on local needs.
 
@@ -170,7 +162,7 @@ For example, if a community has high demand for electricians, plumbers, technici
 
 ## 9. Skill Gap Recommendations
 
-Skill2Work can identify skills that may improve a user's suitability for available employment opportunities.
+Talent2Task can identify skills that may improve a user's suitability for available employment opportunities.
 
 This provides users with insight into additional skills they can develop to increase their employment opportunities.
 
@@ -220,7 +212,7 @@ The system reduces the need for users to manually search through large numbers o
 # System Architecture
 
 ```text
-                         Skill2Work
+                         Talent2Task
                               |
                +--------------+--------------+
                |                             |
@@ -285,7 +277,7 @@ The system reduces the need for users to manually search through large numbers o
 
 # Low-End Device and Offline Design
 
-One of the main objectives of Skill2Work is accessibility.
+One of the main objectives of Talent2Task is accessibility.
 
 The application is designed to:
 
@@ -297,7 +289,7 @@ The application is designed to:
 * Use browser-based technologies instead of requiring a heavy desktop application
 * Support users in areas with unreliable internet connectivity
 
-This approach makes Skill2Work more practical for real-world local employment scenarios.
+This approach makes Talent2Task more practical for real-world local employment scenarios.
 
 ---
 
@@ -312,7 +304,7 @@ Traditional job matching systems commonly depend on:
 * Higher resource requirements
 * Generic job recommendations
 
-Skill2Work introduces a more local and accessible approach by combining:
+Talent2Task introduces a more local and accessible approach by combining:
 
 * AI-based skill matching
 * Location-aware recommendations
@@ -324,13 +316,13 @@ Skill2Work introduces a more local and accessible approach by combining:
 * Low-end device support
 * Lightweight client-side processing
 
-Instead of simply displaying a large list of jobs, Skill2Work focuses on identifying opportunities that are relevant to the individual user's skills and location.
+Instead of simply displaying a large list of jobs, Talent2Task focuses on identifying opportunities that are relevant to the individual user's skills and location.
 
 ---
 
 # Innovation and Uniqueness
 
-The primary innovation of Skill2Work is the combination of **AI-based skill matching, location awareness, community demand, multilingual accessibility, offline functionality, and low-end device support** in a single local employment platform.
+The primary innovation of Talent2Task is the combination of **AI-based skill matching, location awareness, community demand, multilingual accessibility, offline functionality, and low-end device support** in a single local employment platform.
 
 The solution is designed around real-world accessibility rather than assuming that every user has a powerful device or a stable internet connection.
 
@@ -351,7 +343,7 @@ Key differentiating features include:
 
 # Real-World Use Cases
 
-Skill2Work can support:
+Talent2Task can support:
 
 * Local skilled workers
 * Part-time workers
@@ -376,7 +368,7 @@ Location: Local Area
 Job Type: Short-Term
 ```
 
-Skill2Work can identify nearby job seekers with relevant skills and recommend the opportunity to suitable users.
+Talent2Task can identify nearby job seekers with relevant skills and recommend the opportunity to suitable users.
 
 This reduces the time required for both the employer and job seeker to find each other.
 
@@ -395,13 +387,12 @@ Make sure the following are installed:
 ## Clone the Repository
 
 ```bash
-git clone https://github.com/vemalaharshitha/SKILL2WORK.git
 ```
 
 Navigate to the project directory:
 
 ```bash
-cd SKILL2WORK
+cd TALENT2TASK
 ```
 
 ## Install Dependencies
@@ -439,7 +430,7 @@ npm run preview
 # Project Structure
 
 ```text
-Skill2Work/
+Talent2Task/
 │
 ├── public/
 │   ├── _redirects
@@ -500,7 +491,7 @@ Skill2Work/
 
 # Future Enhancements
 
-Future versions of Skill2Work can include:
+Future versions of Talent2Task can include:
 
 * Advanced machine learning recommendation models
 * Improved skill similarity scoring
@@ -519,7 +510,7 @@ Future versions of Skill2Work can include:
 
 # Project Objective
 
-The objective of Skill2Work is to make local employment discovery more efficient, accessible, and inclusive.
+The objective of Talent2Task is to make local employment discovery more efficient, accessible, and inclusive.
 
 The platform aims to reduce the gap between available local talent and employment demand by connecting people with opportunities that match their skills and are relevant to their location.
 
@@ -543,15 +534,7 @@ Developed as a hackathon project by:
 
 ---
 
-# Links
 
-## Live Demo
-
-https://timely-unicorn-e93509.netlify.app/
-
-## GitHub Repository
-
-https://github.com/vemalaharshitha/SKILL2WORK
 
 ---
 

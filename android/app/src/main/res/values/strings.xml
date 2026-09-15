@@ -1,0 +1,19 @@
+<resources>
+    <string name="app_name">Talent2Task</string>
+
+    <!-- ========================================================================= -->
+    <!-- LIVE HTTPS WEBSITE URL CONFIGURATION                                      -->
+    <!-- Put your deployed HTTPS website URL here (e.g., Vercel, Netlify, Domain). -->
+    <!-- The APK will load this URL and always fetch the latest live updates.      -->
+    <!-- DO NOT USE localhost here.                                               -->
+    <!-- ========================================================================= -->
+    <string name="web_app_url">https://talent2task.netlify.app</string>
+
+    <!-- UI Strings -->
+    <string name="error_offline_title">No Internet Connection</string>
+    <string name="error_offline_message">Talent2Task requires an active internet connection to load live gigs and worker matches. Please check your network and try again.</string>
+    <string name="btn_retry">Try Again</string>
+    <string name="toast_exit_prompt">Press back again to exit Talent2Task</string>
+    <string name="permission_location_rationale">Talent2Task needs location access to show nearby gigs on your radar.</string>
+    <string name="permission_camera_rationale">Talent2Task needs camera access to take profile photos and proof of work.</string>
+</resources>
