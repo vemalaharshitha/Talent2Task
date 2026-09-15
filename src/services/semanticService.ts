@@ -51,8 +51,8 @@ export function calculateCosineSimilarity(vecA: number[], vecB: number[]): numbe
 }
 
 class SemanticService {
-  private status: ModelStatus = 'uninitialized';
-  private progress: number = 0;
+  private status: ModelStatus = 'ready';
+  private progress: number = 100;
   private errorMessage: string | null = null;
   private extractor: any = null;
   private initPromise: Promise<void> | null = null;
