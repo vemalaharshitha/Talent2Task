@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import type { Language, User, TimeSlot, Role } from '../types';
+import { sqliteManager } from '../db/sqliteManager';
 import { useLanguage } from '../i18n/LanguageContext';
 import { 
   TAMIL_NADU_CITIES, 
@@ -533,6 +534,43 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onCreateAccount, 
                   }`}
                 >
                   {selectedRole === 'seeker' ? t.stepLocationExperience : t.stepLocationDetails}
+                </div>
+              </div>
+            )}
+
+            {/* 1-Click Instant Demo Access Box for Instant Testing */}
+            {mode === 'signin' && (
+              <div className="mt-4 p-3 rounded-2xl bg-gradient-to-r from-sky-50 to-blue-50 border border-sky-200">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-bold text-sky-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-sky-600 animate-pulse" />
+                    Instant 1-Click Demo Access
+                  </span>
+                  <span className="text-[10px] text-sky-600 font-semibold bg-sky-100 px-2 py-0.5 rounded-full">Explore App</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const seeker = users.find(u => u.role === 'seeker') || sqliteManager.getUsers().find(u => u.role === 'seeker');
+                      if (seeker) onLogin(seeker);
+                    }}
+                    className="p-2.5 rounded-xl bg-white hover:bg-sky-50 border border-sky-300 text-slate-800 hover:text-sky-700 text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
+                  >
+                    <UserRound className="w-4 h-4 text-sky-600" />
+                    <span>Job Seeker Demo</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const recruiter = users.find(u => u.role === 'recruiter') || sqliteManager.getUsers().find(u => u.role === 'recruiter');
+                      if (recruiter) onLogin(recruiter);
+                    }}
+                    className="p-2.5 rounded-xl bg-white hover:bg-sky-50 border border-sky-300 text-slate-800 hover:text-sky-700 text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
+                  >
+                    <Briefcase className="w-4 h-4 text-sky-600" />
+                    <span>Recruiter Demo</span>
+                  </button>
                 </div>
               </div>
             )}

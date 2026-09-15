@@ -82,7 +82,7 @@ if ('serviceWorker' in navigator) {
       if ('caches' in window) {
         caches.keys().then((names) => {
           names.forEach((name) => {
-            if (name.startsWith('talent2task-') && name !== 'talent2task-offline-v4') {
+            if (name.startsWith('talent2task-') && name !== 'talent2task-offline-v5') {
               caches.delete(name).catch(() => {});
             }
           });
